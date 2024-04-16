@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque</title>
+    <link rel="icon" href="/static/imagem/icone.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+
+        #container {
+            max-width: 800px;
+            margin: 0 auto;
+            margin-top: 80px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #form {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #produto {
+            width: 500px;
+            text-align: center;
+        }
+
+        #compras-list, #selecao-list {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,  td {
+            padding: 15px; /* Aumentando o padding para criar mais espaço entre os dados */
+            border-bottom: 1px solid #ccc;
+            text-align: center;
+            vertical-align: middle; /* Alinhamento vertical ao centro */
+        }
+
+        .total {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .carrinho-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            cursor: pointer;
+        }
+
+        .quantidade-itens {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            padding: 5px;
+            font-size: 12px;
+        }
+
+        .btn-remover {
+            background-color: #ff8080;
+            color: white;
+            font-weight: bold;
+            border-radius: 10px;
+        }
+
+        .btn-menos {
+            background-color: #ff8080;
+            color: black;
+            font-weight: bold;
+            border-radius: 10px;
+        }
+        .btn-mais {
+            background-color: #90ee90;
+            color: black;
+            font-weight: bold;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <div class="collapse navbar-collapse" id="navbarNavDarkDropdown">
+
+                <a class="navbar-brand pg-inicial-center" href="/painel">Painel Vendas</a>
+
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Produtos</button>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="/cadastro_produtos">Cadastrar</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Estoque</button>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="/estoque">Produtos em Estoque</a></li>
+                            <li><a class="dropdown-item" href="/fora_estoque">Produtos fora de Estoque</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+                
+            </div>
+            <a class="navbar-brand pg-inicial-center" href="/logout">Sair</a>
+        </div>
+    </nav>
+
+    <div id="container">
+        <h1>Carrinho de Compras</h1>
+        <br>
+        <table id="compras-list">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Produto</th>
+                    <th>Descrição</th>
+                    <th>Estoque</th>
+                    <th>Quantidade</th>
+                    <th>Valor Unitário</th>
+                    <th>Valor Total</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="produtos-body"></tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="6"></td>
+                    <td class="total-sum">Total: R$ 0.00</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td colspan="8">
+                        <button onclick="irParaPagamento()" class="btn btn-primary">Continuar para Pagamento</button>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+ 
+    <br><br>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        var carrinho_compras = {{ carrinho_compras | tojson | safe }};
+
+        window.onload = function() {
+            exibirProdutos(carrinho_compras);
+        };
+
+        function exibirProdutos(produtos) {
+            var tabelaProdutos = document.getElementById('produtos-body');
+            tabelaProdutos.innerHTML = '';
+
+            produtos.forEach(function(produto) {
+                var row = tabelaProdutos.insertRow();
+                var estoqueQuantidade = produto.estoque + produto.quantidade;
+                row.innerHTML = `
+                    <td>${produto.id}</td>
+                    <td>${produto.nome}</td>
+                    <td>${produto.descricao}</td>
+                    <td>${produto.estoque}</td>
+                    <td>
+                        <button type="button" onclick="diminuirQuantidade(this)" class="btn-menos">-</button>
+                        <span>${produto.quantidade}</span>
+                        <button type="button" onclick="aumentarQuantidade(this)" class="btn-mais">+</button>
+                    </td>
+                    <td>R$ ${produto.preco.toFixed(2)}</td>
+                    <td class="valor-total">R$ ${produto.valorTotal.toFixed(2)}</td>
+                    <td><button type="button" onclick="removerItem(this)" class="btn-remover">Remover</button></td>
+                `;
+            });
+            atualizarTotal()
+        }
+
+        function logout() {
+            window.location.href = "/logout";
+        }
+
+        function aumentarQuantidade(button) {
+            var quantidadeSpan = button.parentNode.querySelector('span');
+            var quantidade = parseInt(quantidadeSpan.innerText);
+            var estoque = parseInt(button.parentNode.previousElementSibling.innerText); // Obtém o valor do estoque da célula anterior
+            
+            var produtoId = button.parentNode.parentNode.querySelector('td:first-child').innerText; // Obtém o ID do produto
+            var data = { id: produtoId, quantidade: quantidade}; // Dados a serem enviados para o servidor
+
+            if (estoque !== 0) {
+                // Atualizar estoque no front-end
+                estoque--;
+                button.parentNode.previousElementSibling.innerText = estoque;
+
+                quantidade++;
+                quantidadeSpan.innerText = quantidade;
+                
+                // Atualizar estoque no back-end
+                atualizarEstoque(produtoId, quantidade, estoque);
+
+                // Chama a função calcularTotal
+                calcularTotal(quantidadeSpan); 
+
+                // Chama a função atualizarTotal
+                atualizarTotal();
+                
+            } else {
+                alert('Quantidade máxima atingida.');
+            }
+        }
+
+        function diminuirQuantidade(button) {
+            var quantidadeSpan = button.parentNode.querySelector('span');
+            var quantidade = parseInt(quantidadeSpan.innerText);
+            var estoque = parseInt(button.parentNode.previousElementSibling.innerText); // Obtém o valor do estoque da célula anterior
+            
+            var produtoId = button.parentNode.parentNode.querySelector('td:first-child').innerText; // Obtém o ID do produto
+            var data = { id: produtoId, quantidade: quantidade + 1 }; // Dados a serem enviados para o servidor
+            
+            
+
+            if (quantidade !== 1) {
+                // Atualizar estoque no front-end
+                estoque++;
+                button.parentNode.previousElementSibling.innerText = estoque;
+                
+                quantidade--;
+                quantidadeSpan.innerText = quantidade;
+
+                // Atualizar estoque no back-end
+                atualizarEstoque(produtoId, quantidade, estoque);
+
+                // Chama a função calcularTotal
+                calcularTotal(quantidadeSpan); 
+
+                // Chama a função atualizarTotal
+                atualizarTotal();   
+            } else {
+                alert('Quantidade minima atingida, se não deseja mais REMOVA.');
+            }
+        }
+
+        function atualizarEstoque(produtoId, quantidade, estoque) {
+            var data = { id: produtoId, quantidade: quantidade, estoque: estoque };
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/atualizar_estoque', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        console.log('Estoque atualizado com sucesso.');
+                    } else {
+                        console.error('Erro ao atualizar estoque:', xhr.status);
+                    }
+                }
+            };
+            xhr.send(JSON.stringify(data));
+        }
+
+        function calcularTotal(input) {
+            var linha = input.parentNode.parentNode; // Obtém a linha (tr) onde o input está localizado
+            var quantidade = parseInt(input.parentNode.querySelector('span').innerText); // Obtém a quantidade de itens
+            var precoUnitario = parseFloat(linha.querySelector('td:nth-child(6)').innerText.substring(3)); // Obtém o valor unitário da quinta célula (coluna) da linha
+            var totalItem = precoUnitario * quantidade; // Calcula o valor total do item
+
+            // Atualiza o valor total na última célula (coluna) da linha
+            linha.querySelector('.valor-total').innerText = 'R$ ' + totalItem.toFixed(2);
+        }
+
+        // Função para calcular a soma total dos valores totais dos itens
+        function calcularSomaTotal() {
+            var linhas = document.querySelectorAll('#produtos-body tr');
+            var somaTotal = 0;
+
+            linhas.forEach(function(linha) {
+                var valorTotalStr = linha.querySelector('.valor-total').innerText;
+                var valorTotal = parseFloat(valorTotalStr.substring(3).replace(',', '.')); // Trata o separador decimal
+                somaTotal += valorTotal;
+            });
+
+            // Atualiza a célula de soma total
+            document.querySelector('.total-sum').innerText = 'Total: R$ ' + somaTotal.toFixed(2);
+        }
+
+        // Função para atualizar o total sempre que houver uma alteração nos valores totais dos itens
+        function atualizarTotal() {
+            calcularSomaTotal();
+            var total = parseFloat(document.querySelector('.total-sum').innerText.replace('Total: R$ ', ''));
+            var btnPagamento = document.querySelector('button.btn-primary');
+
+            if (total <= 0) {
+                btnPagamento.disabled = true; // Desabilita o botão se o total for zero ou menor
+            } else {
+                btnPagamento.disabled = false; // Habilita o botão se o total for maior que zero
+            }
+        }
+
+        function enviarParaFlask(produto) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/adicionar_carrinho', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        alert('Produto adicionado ao carrinho com sucesso!');
+                    } else {
+                        alert('Erro ao adicionar produto ao carrinho.');
+                    }
+                }
+            }
+            xhr.send(JSON.stringify(produto)); // Envie os dados para o Flask
+        }
+
+        function irParaPagamento() {
+            // Calcular o valor total
+            var total = parseFloat(document.querySelector('.total-sum').innerText.replace('Total: R$ ', ''));
+
+            // Enviar o valor total para o Flask
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/pagina_pagamento', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        document.open();
+                        document.write(xhr.responseText);
+                        document.close();
+                    } else {
+                        console.error('Erro ao enviar valor total para o Flask:', xhr.status);
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ total: total.toFixed(2) }));
+        }
+
+        function removerItem(button) {
+            var row = button.parentNode.parentNode;
+            var produtoId = row.querySelector('td:first-child').innerText;
+
+            // Aqui você cria um objeto com os dados que deseja enviar para o Flask
+            var data = {
+                id: produtoId
+            };
+
+            // Aqui você cria a solicitação XMLHttpRequest
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/remover_produto', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+
+            // Defina o callback para o evento 'onreadystatechange' para lidar com a resposta do servidor
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        // Aqui você pode lidar com a resposta do servidor
+                        // Por exemplo, se o servidor enviar uma resposta de sucesso, você pode atualizar a interface do usuário
+                        row.remove(); // Remove o item da lista na interface do usuário
+                        atualizarTotal(); // Atualiza o total após remover o item
+                    } else {
+                        // Aqui você pode lidar com erros que ocorrem durante a comunicação com o servidor
+                        console.error('Erro ao remover produto:', xhr.status);
+                    }
+                }
+            };
+
+            // Aqui você envia a solicitação com os dados JSON
+            xhr.send(JSON.stringify(data));
+            row.remove();
+            atualizarTotal(); // Atualiza o total após remover o item
+        }
+    </script>
+
+    
+</body>
+</html>

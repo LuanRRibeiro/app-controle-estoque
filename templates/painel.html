@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque</title>
+    <link rel="icon" href="/static/imagem/icone.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+
+        #container {
+            max-width: 800px;
+            margin: 0 auto;
+            margin-top: 80px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #form {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #produto {
+            width: 500px;
+            text-align: center;
+        }
+
+        #compras-list, #selecao-list {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,  td {
+            padding: 15px; /* Aumentando o padding para criar mais espaço entre os dados */
+            border-bottom: 1px solid #ccc;
+            text-align: center;
+            vertical-align: middle; /* Alinhamento vertical ao centro */
+        }
+
+        .total {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .carrinho-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            cursor: pointer;
+        }
+
+        .quantidade-itens {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            padding: 5px;
+            font-size: 12px;
+        }
+
+        .btn-adicionar {
+            background-color: #90ee90;
+            color: white;
+            font-weight: bold;
+            border-radius: 10px;
+        }
+
+        .btn-menos {
+            background-color: #ff8080;
+            color: black;
+            font-weight: bold;
+            border-radius: 10px;
+        }
+        .btn-mais {
+            background-color: #90ee90;
+            color: black;
+            font-weight: bold;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <div class="collapse navbar-collapse" id="navbarNavDarkDropdown">
+
+                <a class="navbar-brand pg-inicial-center" href="/painel">Painel Vendas</a>
+
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Produtos</button>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="/cadastro_produtos">Cadastrar</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Estoque</button>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="/estoque">Produtos em Estoque</a></li>
+                            <li><a class="dropdown-item" href="/fora_estoque">Produtos fora de Estoque</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+                
+            </div>
+            <a class="navbar-brand pg-inicial-center" href="/logout">Sair</a>
+        </div>
+    </nav>
+
+    <div id="container">
+        <h1>Painel de Vendas</h1>
+        <form id="form">
+            <input type="text" id="produto" placeholder="ID ou Nome do Produto" oninput="buscarProduto()">
+             <br>
+        </form>
+        <br>
+        <h2>Produtos</h2>
+      
+        <table id="compras-list">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Produto</th>
+                    <th>Descrição</th>
+                    <th>Estoque</th>
+                    <th>Quantidade</th>
+                    <th>Valor Unitário</th>
+                    <th>Valor Total</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="produtos-body"></tbody>
+        </table>
+    </div>
+
+    <div id="carrinho-icon" class="carrinho-icon" onclick="irParaCarrinho()">
+        <span id="quantidade-itens-carrinho" class="quantidade-itens">{{ quantidade_itens_carrinho }}</span>
+        <img src="/static/imagem/carrinho.png" alt="Carrinho de compras">
+    </div>
+
+    <br><br>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        var produtos = {{ produtos | tojson | safe }};
+       
+        function logout() {
+            window.location.href = "/logout";
+        }
+
+        function buscarProduto() {
+            var termo = document.getElementById('produto').value.toLowerCase();
+            var produtosFiltrados = produtos.filter(function(produto) {
+                if (!isNaN(termo)) { // Verifica se o termo é um número
+                    return produto.id == termo;
+                } else {
+                    return produto.nome.toLowerCase().includes(termo) || produto.descricao.toLowerCase().includes(termo);
+                }
+            });
+            exibirProdutos(produtosFiltrados);
+        }
+
+        function exibirProdutos(produtos) {
+            var tabelaProdutos = document.getElementById('produtos-body');
+            tabelaProdutos.innerHTML = '';
+
+            produtos.forEach(function(produto) {
+                var row = tabelaProdutos.insertRow();
+                row.innerHTML = `
+                    <td>${produto.id}</td>
+                    <td>${produto.nome}</td>
+                    <td>${produto.descricao}</td>
+                    <td>${produto.quantidade}</td>
+                    <td>
+                        <button type="button" onclick="diminuirQuantidade(this)" class="btn-menos">-</button>
+                        <span>1</span>
+                        <button type="button" onclick="aumentarQuantidade(this)" class="btn-mais">+</button>
+                    </td>
+                    <td>R$ ${produto.preco.toFixed(2)}</td>
+                    <td class="valor-total">R$ ${produto.preco.toFixed(2)}</td>
+                    <td><button type="button" onclick="adicionarItem(this)" class="btn-adicionar">Adicionar</button></td>
+                `;
+            });
+        }
+
+        function aumentarQuantidade(button) {
+            var quantidadeSpan = button.parentNode.querySelector('span');
+            var quantidade = parseInt(quantidadeSpan.innerText);
+            var estoque = parseInt(button.parentNode.previousElementSibling.innerText); // Obtém o valor do estoque da célula anterior
+
+            if (quantidade < estoque) {
+                quantidade++;
+                quantidadeSpan.innerText = quantidade;
+                calcularTotal(quantidadeSpan); // Chama a função calcularTotal
+                atualizarTotal();
+            } else {
+                alert('Quantidade máxima atingida.');
+            }
+        }
+
+        function diminuirQuantidade(button) {
+            var quantidadeSpan = button.parentNode.querySelector('span');
+            var quantidade = parseInt(quantidadeSpan.innerText);
+            if (quantidade > 1) {
+                quantidade--;
+                quantidadeSpan.innerText = quantidade;
+                calcularTotal(quantidadeSpan); // Chama a função calcularTotal
+                atualizarTotal();
+            }
+        }
+
+        function calcularTotal(input) {
+            var linha = input.parentNode.parentNode; // Obtém a linha (tr) onde o input está localizado
+            var quantidade = parseInt(input.parentNode.querySelector('span').innerText); // Obtém a quantidade de itens
+            var precoUnitario = parseFloat(linha.querySelector('td:nth-child(6)').innerText.substring(3)); // Obtém o valor unitário da quinta célula (coluna) da linha
+            var totalItem = precoUnitario * quantidade; // Calcula o valor total do item
+
+            // Atualiza o valor total na última célula (coluna) da linha
+            linha.querySelector('.valor-total').innerText = 'R$ ' + totalItem.toFixed(2);
+        }
+
+        function adicionarItem(button) {
+            var linha = button.parentNode.parentNode; // Obtém a linha (tr) onde o botão foi clicado
+            var id = linha.querySelector('td:nth-child(1)').innerText;
+            var nome = linha.querySelector('td:nth-child(2)').innerText;
+            var descricao = linha.querySelector('td:nth-child(3)').innerText;
+            var estoque = parseInt(linha.querySelector('td:nth-child(4)').innerText);
+            var quantidade = parseInt(linha.querySelector('td:nth-child(5) span').innerText);
+            var preco = parseFloat(linha.querySelector('td:nth-child(6)').innerText.substring(3));
+            var valorTotal = parseFloat(linha.querySelector('td:nth-child(7)').innerText.substring(3));
+            
+            // Verificar se há estoque disponível
+            if (quantidade <= estoque) {
+                // Subtrair a quantidade do estoque
+                estoque -= quantidade;
+                
+                // Atualizar a quantidade no HTML
+                linha.querySelector('td:nth-child(4)').innerText = estoque;
+                
+                // Crie um objeto com os detalhes do produto
+                var produto = {
+                    id: id,
+                    nome: nome,
+                    descricao: descricao,
+                    estoque: estoque,
+                    quantidade: quantidade,
+                    preco: preco,
+                    valorTotal: valorTotal
+                };
+
+                // Enviar o objeto para o Flask
+                enviarParaFlask(produto);
+            } else {
+                alert('Quantidade indisponível no estoque.');
+            }
+        }
+
+        function enviarParaFlask(produto) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/adicionar_carrinho', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        var resposta = JSON.parse(xhr.responseText); // Converte a resposta em um objeto JSON
+                        atualizarQuantidadeItensCarrinho(resposta.quantidadeItens); // Atualiza a quantidade de itens no carrinho
+                        alert(resposta.message); // Exibe a mensagem de sucesso
+                    } else {
+                        alert('Erro ao adicionar produto ao carrinho.');
+                    }
+                }
+            }
+            xhr.send(JSON.stringify(produto)); // Envie os dados para o Flask
+        }
+    </script>
+
+    <script>
+        // Função para redirecionar para a página do carrinho de compras
+        function irParaCarrinho() {
+            window.location.href = "/carrinho"; // Substitua "carrinho.html" pelo caminho real da sua página do carrinho
+        }
+        
+        // Função para atualizar a quantidade de itens no carrinho
+        function atualizarQuantidadeItensCarrinho(quantidade) {
+            var spanQuantidade = document.getElementById('quantidade-itens-carrinho');
+            spanQuantidade.innerText = quantidade;
+        }
+    </script>
+
+    
+</body>
+</html>

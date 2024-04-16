@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Produto</title>
+    <link rel="icon" href="/static/imagem/icone.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+
+        
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 80px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .form-group input[type="text"],
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-transform: uppercase; /* Transforma o texto em caixa alta */
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        
+        .form-group input[type="file"] {
+            margin-top: 5px;
+        }
+        
+        .form-group input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .form-group input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <div class="collapse navbar-collapse" id="navbarNavDarkDropdown">
+
+                <a class="navbar-brand pg-inicial-center" href="/painel">Painel Vendas</a>
+
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Produtos</button>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="/cadastro_produtos">Cadastrar</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Estoque</button>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="/estoque">Produtos em Estoque</a></li>
+                            <li><a class="dropdown-item" href="/fora_estoque">Produtos fora de Estoque</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <a class="navbar-brand pg-inicial-center" href="/logout">Sair</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h2>Cadastro de Produto</h2>
+        <form action="#" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="nome">Nome do Produto:</label>
+                <input type="text" id="nome" name="nome" style="text-transform: uppercase;" required>
+            </div>
+            <div class="form-group">
+                <label for="quantidade">Quantidade:</label>
+                <input type="number" id="quantidade" name="quantidade" min="1" required>
+            </div>
+            <div class="form-group">
+                <label for="descricao">Descrição:</label>
+                <textarea id="descricao" name="descricao" rows="4" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="preco_compra">Preço de Compra (R$):</label>
+                <input type="number" id="preco_compra" name="preco_compra" min="0" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="preco_venda">Preço de Venda (R$):</label>
+                <input type="number" id="preco_venda" name="preco_venda" min="0" step="0.01" oninput="calcularLucro()" required>
+            </div>
+            <div class="form-group">
+                <label for="lucro_reais">Lucro (R$):</label>
+                <input type="text" id="lucro_reais" name="lucro_reais" readonly>
+            </div>
+            <div class="form-group">
+                <label for="lucro_porcentagem">Lucro (%):</label>
+                <input type="text" id="lucro_porcentagem" name="lucro_porcentagem" readonly>
+            </div>
+            
+
+            <div class="form-group">
+                <label for="imagem">Imagem do Produto:</label>
+                <input type="file" id="imagem" name="imagem" accept="image/*" required>
+            </div>
+            <div class="form-group">
+                <input type="submit" id="btn-cadastrar" value="Cadastrar Produto">
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        function logout() {
+            window.location.href = "/logout";
+        }
+
+        // Verificar se o usuário chegou a esta página usando a seta de voltar do navegador
+        window.onload = function() {
+            if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {
+                // Redirecionar para a página de login se o usuário não estiver autenticado
+                // Substitua 'caminho_para_login' pelo URL da sua página de login
+                window.location.replace("/");
+            }
+        };
+    </script>
+
+    <script>
+        function calcularLucro() {
+            var precoCompra = parseFloat(document.getElementById("preco_compra").value);
+            var precoVenda = parseFloat(document.getElementById("preco_venda").value);
+    
+            var lucroReais = precoVenda - precoCompra;
+            var lucroPorcentagem = (lucroReais / precoCompra) * 100;
+    
+            document.getElementById("lucro_reais").value = lucroReais.toFixed(2);
+            document.getElementById("lucro_porcentagem").value = lucroPorcentagem.toFixed(2) + "%";
+        }
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('btn-cadastrar').addEventListener('click', function(event) {
+                event.preventDefault(); // Evita o envio tradicional do formulário
+
+                var form_data = new FormData();
+                form_data.append('nome', document.getElementById('nome').value);
+                form_data.append('quantidade', document.getElementById('quantidade').value);
+                form_data.append('descricao', document.getElementById('descricao').value);
+                form_data.append('preco_compra', document.getElementById('preco_compra').value);
+                form_data.append('preco_venda', document.getElementById('preco_venda').value);
+                form_data.append('lucro_reais', document.getElementById('lucro_reais').value);
+                form_data.append('lucro_porcentagem', document.getElementById('lucro_porcentagem').value);
+                form_data.append('imagem', document.getElementById('imagem').files[0]);
+                
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/adicionar_produto', true);
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        document.getElementById('nome').value = '';
+                        document.getElementById('quantidade').value = '';
+                        document.getElementById('descricao').value = '';
+                        document.getElementById('preco_compra').value = '';
+                        document.getElementById('preco_venda').value = '';
+                        document.getElementById('lucro_reais').value = '';
+                        document.getElementById('lucro_porcentagem').value = '';
+                        document.getElementById('imagem').value = '';
+                        alert('Produto cadastrado com sucesso!');
+                    } 
+                    else if (xhr.status === 409) {
+                        alert('Produto já cadastrado anteriormente!');
+                    }
+                    else {
+                        alert('Ocorreu um erro ao cadastrar o produto. Por favor, tente novamente.');
+                    }
+                };
+                xhr.send(form_data);
+            });
+        });
+    </script>
+
+
+</body>
+</html>
