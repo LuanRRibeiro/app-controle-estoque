@@ -4,6 +4,9 @@ from flask import Flask, request, redirect, render_template, session, url_for, j
 import os
 from werkzeug.utils import secure_filename
 import psycopg2
+from google.cloud import storage
+import datetime
+import tempfile
 
 
 app = Flask(__name__)
@@ -12,6 +15,7 @@ app.secret_key = 'sua_chave_secreta_aqui'
 
 lista_produtos_estoque = []
 carrinho_compras = []
+
 
 def conexao_bd():
     host = "dpg-cof9fjq1hbls7399en5g-a.oregon-postgres.render.com"
@@ -137,40 +141,93 @@ def pagina_adicionar_produto():
     lucro_reais = request.form['lucro_reais']
     lucro_porcentagem = request.form['lucro_porcentagem']
     lucro_porcentagem = float(lucro_porcentagem.rstrip('%'))
-    imagem = request.files['imagem']
-
     
-    if imagem.filename != '':
-        diretorio_raiz = os.path.dirname(os.path.abspath(__file__))
-        diretorio_imagem = os.path.join(diretorio_raiz, 'imagem')
-
-        extensao = imagem.filename.split('.')[-1]
-
-        # Obtém o nome seguro do arquivo
-        nome_seguro = secure_filename(nome + '.' + extensao)
-
-        # Monta o caminho completo do novo arquivo
-        caminho_arquivo = os.path.join(diretorio_imagem, nome_seguro)
-
-        # Salva o arquivo no caminho especificado
-        imagem.save(caminho_arquivo)
-
-        caminho_imagem = os.path.join(diretorio_raiz, 'imagem', nome_seguro) 
+    # Verifique se um arquivo de imagem foi enviado
+    if 'imagem' in request.files:
+        imagem = request.files['imagem']
+        enviado = 'sim'
     else:
-        imagem = None
-        caminho_imagem = ''
+        enviado = 'nao'
     
-    
-    # Chame a função desejada com os dados recebidos
-    resultado = adicionar_produto(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, caminho_imagem)
-
-    # Retorne uma resposta adequada para o JavaScript
-    if resultado == 'Cadastrado':
-        return 'Produto cadastrado com sucesso!', 200
-    elif resultado == 'Existe':
+    if produto_existe(nome):
         return 'Produto já cadastrado anteriormente!', 409
     else:
-        return 'Ocorreu um erro ao cadastrar o produto. Por favor, tente novamente.', 500
+        if enviado == 'sim':
+            extensao = imagem.filename.split('.')[-1]
+
+            # Obtém o nome do arquivo com extensão
+            nome_arquivo = secure_filename(nome + '.' + extensao)
+
+            # Cria um diretório temporário para salvar o arquivo
+            temp_dir = tempfile.mkdtemp()
+            file_path = os.path.join(temp_dir, imagem.filename)
+            
+            # Salva o arquivo no diretório temporário
+            imagem.save(file_path)
+
+            # Obtém o caminho do diretório atual do arquivo
+            caminho_arquivo_json = os.path.dirname(os.path.realpath(__file__))
+
+            # Nome do arquivo de chave de serviço
+            chave = 'projetoteste-398517-9de2939260b4.json'
+
+            # Caminho completo para o arquivo de chave de serviço
+            caminho_arquivo_json = caminho_arquivo_json + '\\' + chave
+
+            # Define as credenciais de autenticação para o Google Cloud Storage
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = caminho_arquivo_json
+
+            nome_bucket = "bd_imagens"
+            caminho_imagem_local = file_path
+            nome_blob_destino = nome_arquivo
+            
+            fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino)
+            url = obter_url_imagem(nome_bucket, nome_blob_destino)
+
+            # Exclui o diretório temporário e seu conteúdo
+            os.remove(file_path)
+            os.rmdir(temp_dir)
+
+            # Chame a função desejada com os dados recebidos
+            resultado = adicionar_produto(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url)
+
+            # Retorne uma resposta adequada para o JavaScript
+            if resultado == 'Cadastrado':
+                return 'Produto cadastrado com sucesso!', 200
+            else:
+                return 'Ocorreu um erro ao cadastrar o produto. Por favor, tente novamente.', 500
+        else:
+            url = ''
+            # Chame a função desejada com os dados recebidos
+            resultado = adicionar_produto(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url)
+            return 'Produto cadastrado com sucesso!', 200
+
+def fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino):
+    # Inicializa o cliente do Google Cloud Storage
+    cliente_storage = storage.Client()
+
+    # Obtém o bucket
+    bucket = cliente_storage.bucket(nome_bucket)
+
+    # Cria um novo blob e faz upload da imagem
+    blob = bucket.blob(nome_blob_destino)
+    blob.upload_from_filename(caminho_imagem_local)
+
+def obter_url_imagem(nome_bucket, nome_blob):
+    # Inicializa o cliente do Google Cloud Storage
+    cliente_storage = storage.Client()
+
+    # Obtém o bucket
+    bucket = cliente_storage.bucket(nome_bucket)
+
+    # Obtém o blob
+    blob = bucket.blob(nome_blob)
+
+    # Gera a URL assinada com uma expiração longa
+    url = blob.generate_signed_url(expiration=datetime.timedelta(days=3652))
+
+    return url
+
 
 # função que analisa se o produto ja esta cadastrado.
 def produto_existe(nome_produto):
@@ -408,8 +465,8 @@ def finalizar_pagamento():
     
 
 if __name__ == '__main__':
-    app.run()
-    #app.run(debug=True)
+    #app.run()
+    app.run(debug=True)
     #app.run(host='0.0.0.0')
 
  

@@ -122,7 +122,7 @@
             </div>
             <div class="form-group">
                 <label for="descricao">Descrição:</label>
-                <textarea id="descricao" name="descricao" rows="4" required></textarea>
+                <textarea id="descricao" name="descricao" rows="4" style="text-transform: uppercase;" required></textarea>
             </div>
             <div class="form-group">
                 <label for="preco_compra">Preço de Compra (R$):</label>
@@ -144,8 +144,14 @@
 
             <div class="form-group">
                 <label for="imagem">Imagem do Produto:</label>
-                <input type="file" id="imagem" name="imagem" accept="image/*" required>
+                <input type="file" id="imagem" name="imagem" accept="image/*">
             </div>
+
+            <div id="loading-message" style="display: none;">
+                <img src="https://www.doutoresdoexcel.com.br/wp-content/uploads/2021/07/Loading-PNG.gif" alt="Carregando..." style="float: left; margin-right: 10px; width: 50px; height: 50px;">
+                <p style="overflow: hidden; line-height: 50px;">Cadastrando produto, por favor aguarde...</p>
+            </div>
+
             <div class="form-group">
                 <input type="submit" id="btn-cadastrar" value="Cadastrar Produto">
             </div>
@@ -167,61 +173,102 @@
                 window.location.replace("/");
             }
         };
-    </script>
 
-    <script>
         function calcularLucro() {
-            var precoCompra = parseFloat(document.getElementById("preco_compra").value);
-            var precoVenda = parseFloat(document.getElementById("preco_venda").value);
-    
-            var lucroReais = precoVenda - precoCompra;
-            var lucroPorcentagem = (lucroReais / precoCompra) * 100;
-    
-            document.getElementById("lucro_reais").value = lucroReais.toFixed(2);
-            document.getElementById("lucro_porcentagem").value = lucroPorcentagem.toFixed(2) + "%";
-        }
-    </script>
+            var precoCompraInput = document.getElementById("preco_compra");
+            var precoVendaInput = document.getElementById("preco_venda");
 
-    <script>
+            // Verificar se ambos os campos de preço de compra e preço de venda estão preenchidos
+            if (precoCompraInput.value && precoVendaInput.value) {
+                var precoCompra = parseFloat(precoCompraInput.value);
+                var precoVenda = parseFloat(precoVendaInput.value);
+
+                // Calcular o lucro apenas se ambos os campos estiverem preenchidos
+                var lucroReais = precoVenda - precoCompra;
+                var lucroPorcentagem = (lucroReais / precoCompra) * 100;
+
+                // Exibir os resultados formatados nos campos de saída
+                document.getElementById("lucro_reais").value = lucroReais.toFixed(2);
+                document.getElementById("lucro_porcentagem").value = lucroPorcentagem.toFixed(2) + "%";
+            } else {
+                // Se algum dos campos estiver vazio, definir o valor do campo de lucro como vazio
+                document.getElementById("lucro_reais").value = "";
+                document.getElementById("lucro_porcentagem").value = "";
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('btn-cadastrar').addEventListener('click', function(event) {
                 event.preventDefault(); // Evita o envio tradicional do formulário
 
-                var form_data = new FormData();
-                form_data.append('nome', document.getElementById('nome').value);
-                form_data.append('quantidade', document.getElementById('quantidade').value);
-                form_data.append('descricao', document.getElementById('descricao').value);
-                form_data.append('preco_compra', document.getElementById('preco_compra').value);
-                form_data.append('preco_venda', document.getElementById('preco_venda').value);
-                form_data.append('lucro_reais', document.getElementById('lucro_reais').value);
-                form_data.append('lucro_porcentagem', document.getElementById('lucro_porcentagem').value);
-                form_data.append('imagem', document.getElementById('imagem').files[0]);
-                
+                // Validar os campos do formulário
+                if (validarFormulario()) {
+                    // Mostrar o elemento de mensagem de carregamento
+                    document.getElementById('loading-message').style.display = 'block';
 
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/adicionar_produto', true);
-                xhr.onload = function() {
-                    if (xhr.status === 200) {
-                        document.getElementById('nome').value = '';
-                        document.getElementById('quantidade').value = '';
-                        document.getElementById('descricao').value = '';
-                        document.getElementById('preco_compra').value = '';
-                        document.getElementById('preco_venda').value = '';
-                        document.getElementById('lucro_reais').value = '';
-                        document.getElementById('lucro_porcentagem').value = '';
-                        document.getElementById('imagem').value = '';
-                        alert('Produto cadastrado com sucesso!');
-                    } 
-                    else if (xhr.status === 409) {
-                        alert('Produto já cadastrado anteriormente!');
+                    var form_data = new FormData();
+                    form_data.append('nome', document.getElementById('nome').value);
+                    form_data.append('quantidade', document.getElementById('quantidade').value);
+                    form_data.append('descricao', document.getElementById('descricao').value);
+                    form_data.append('preco_compra', document.getElementById('preco_compra').value);
+                    form_data.append('preco_venda', document.getElementById('preco_venda').value);
+                    form_data.append('lucro_reais', document.getElementById('lucro_reais').value);
+                    form_data.append('lucro_porcentagem', document.getElementById('lucro_porcentagem').value);
+                    var imagemInput = document.getElementById('imagem');
+                    var imagemFile = imagemInput.files[0];
+
+                    // Verificar se um arquivo foi selecionado
+                    if (imagemFile) {
+                        form_data.append('imagem', imagemFile);
                     }
-                    else {
-                        alert('Ocorreu um erro ao cadastrar o produto. Por favor, tente novamente.');
-                    }
-                };
-                xhr.send(form_data);
+                    
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/adicionar_produto', true);
+                    xhr.onload = function() {
+                        // Ocultar a mensagem de carregamento após o processamento do formulário
+                        document.getElementById('loading-message').style.display = 'none';
+
+                        if (xhr.status === 200) {
+                            document.getElementById('nome').value = '';
+                            document.getElementById('quantidade').value = '';
+                            document.getElementById('descricao').value = '';
+                            document.getElementById('preco_compra').value = '';
+                            document.getElementById('preco_venda').value = '';
+                            document.getElementById('lucro_reais').value = '';
+                            document.getElementById('lucro_porcentagem').value = '';
+                            document.getElementById('imagem').value = '';
+                            alert('Produto cadastrado com sucesso!');
+                        } 
+                        else if (xhr.status === 409) {
+                            alert('Produto já cadastrado anteriormente!');
+                        }
+                        else {
+                            alert('Ocorreu um erro ao cadastrar o produto. Por favor, tente novamente.');
+                        }
+                    };
+                    xhr.send(form_data);
+                }
             });
         });
+
+        function validarFormulario() {
+            // Realize a validação dos campos do formulário aqui
+            // Por exemplo, verifique se os campos obrigatórios estão preenchidos
+            var nome = document.getElementById('nome').value;
+            var quantidade = document.getElementById('quantidade').value;
+            var descricao = document.getElementById('descricao').value;
+            var precoCompra = document.getElementById('preco_compra').value;
+            var precoVenda = document.getElementById('preco_venda').value;
+
+            if (nome === '' || quantidade === '' || descricao === '' || precoCompra === '' || precoVenda === '') {
+                alert('Por favor, preencha todos os campos.');
+                return false;
+            }
+
+            // Adicione outras verificações conforme necessário
+
+            return true;
+        }
     </script>
 
 
