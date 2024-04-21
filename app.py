@@ -171,6 +171,7 @@ def pagina_adicionar_produto():
             caminho_completo = os.path.join(pasta_imagem, arquivo)
             imagem.save(caminho_completo)
 
+            print(caminho_completo)
 
             # Nome do arquivo de chave de serviço
             chave = 'projetoteste-398517-9de2939260b4.json'
