@@ -158,17 +158,17 @@ def pagina_adicionar_produto():
             print(imagem)
             print(pasta_raiz)
 
-            pasta_imagem = pasta_raiz + '/' + 'temp'
-            print(pasta_imagem)
+            pasta_temp = pasta_raiz + '/' + 'temp'
+            print(pasta_temp)
 
             # Obtém a extensão do arquivo
             extensao = imagem.filename.split('.')[-1]
 
             # Obtém o nome do arquivo com extensão
             arquivo = secure_filename(nome + '.' + extensao)
+            print(arquivo)
 
-
-            caminho_completo = os.path.join(pasta_imagem, arquivo)
+            caminho_completo = os.path.join(pasta_temp, arquivo)
             imagem.save(caminho_completo)
 
             print(caminho_completo)
