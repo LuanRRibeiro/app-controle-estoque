@@ -179,7 +179,7 @@ def pagina_adicionar_produto():
             chave = 'projetoteste-398517-9de2939260b4.json'
 
             # Caminho completo para o arquivo de chave de serviço
-            caminho_arquivo_json = pasta_raiz + '\\' + chave
+            caminho_arquivo_json = pasta_raiz + '/' + chave
 
             # Define as credenciais de autenticação para o Google Cloud Storage
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = caminho_arquivo_json
