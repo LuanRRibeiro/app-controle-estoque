@@ -153,41 +153,41 @@ def pagina_adicionar_produto():
         return 'Produto já cadastrado anteriormente!', 409
     else:
         if enviado == 'sim':
+            # Obtém pasta raiz do aplicativo
+            pasta_raiz = os.path.dirname(os.path.realpath(__file__))
+
+            pasta_imagem = pasta_raiz + '\\' + 'temp'
+
+            # Obtém a extensão do arquivo
             extensao = imagem.filename.split('.')[-1]
 
             # Obtém o nome do arquivo com extensão
-            nome_arquivo = secure_filename(nome + '.' + extensao)
+            arquivo = secure_filename(nome + '.' + extensao)
 
-            # Cria um diretório temporário para salvar o arquivo
-            temp_dir = tempfile.mkdtemp()
-            file_path = os.path.join(temp_dir, imagem.filename)
-            
-            # Salva o arquivo no diretório temporário
-            imagem.save(file_path)
 
-            # Obtém o caminho do diretório atual do arquivo
-            caminho_arquivo_json = os.path.dirname(os.path.realpath(__file__))
+            caminho_completo = os.path.join(pasta_imagem, arquivo)
+            imagem.save(caminho_completo)
+
 
             # Nome do arquivo de chave de serviço
             chave = 'projetoteste-398517-9de2939260b4.json'
 
             # Caminho completo para o arquivo de chave de serviço
-            caminho_arquivo_json = caminho_arquivo_json + '\\' + chave
+            caminho_arquivo_json = pasta_raiz + '\\' + chave
 
             # Define as credenciais de autenticação para o Google Cloud Storage
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = caminho_arquivo_json
 
             nome_bucket = "bd_imagens"
-            caminho_imagem_local = file_path
-            nome_blob_destino = nome_arquivo
+            caminho_imagem_local = caminho_completo
+            nome_blob_destino = arquivo
             
             fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino)
             url = obter_url_imagem(nome_bucket, nome_blob_destino)
 
             # Exclui o diretório temporário e seu conteúdo
-            os.remove(file_path)
-            os.rmdir(temp_dir)
-
+            os.remove(caminho_completo)
+            
             # Chame a função desejada com os dados recebidos
             resultado = adicionar_produto(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url)
 

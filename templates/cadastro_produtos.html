@@ -214,6 +214,8 @@
                     form_data.append('preco_venda', document.getElementById('preco_venda').value);
                     form_data.append('lucro_reais', document.getElementById('lucro_reais').value);
                     form_data.append('lucro_porcentagem', document.getElementById('lucro_porcentagem').value);
+                    
+                    // Obter o arquivo de imagem selecionado pelo usuário
                     var imagemInput = document.getElementById('imagem');
                     var imagemFile = imagemInput.files[0];
 
@@ -222,6 +224,7 @@
                         form_data.append('imagem', imagemFile);
                     }
                     
+                    // Enviar os dados do formulário para o servidor usando XMLHttpRequest
                     var xhr = new XMLHttpRequest();
                     xhr.open('POST', '/adicionar_produto', true);
                     xhr.onload = function() {
@@ -229,6 +232,7 @@
                         document.getElementById('loading-message').style.display = 'none';
 
                         if (xhr.status === 200) {
+                            // Limpar os campos do formulário
                             document.getElementById('nome').value = '';
                             document.getElementById('quantidade').value = '';
                             document.getElementById('descricao').value = '';
