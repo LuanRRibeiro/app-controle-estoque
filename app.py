@@ -155,6 +155,7 @@ def pagina_adicionar_produto():
         if enviado == 'sim':
             # Obtém pasta raiz do aplicativo
             pasta_raiz = os.path.dirname(os.path.realpath(__file__))
+            print(pasta_raiz)
 
             pasta_imagem = pasta_raiz + '/' + 'temp'
 
