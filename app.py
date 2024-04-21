@@ -155,22 +155,24 @@ def pagina_adicionar_produto():
         if enviado == 'sim':
             # Obtém pasta raiz do aplicativo
             pasta_raiz = os.path.dirname(os.path.realpath(__file__))
-            print(imagem)
-            print(pasta_raiz)
-
-            pasta_temp = pasta_raiz + '/' + 'temp'
-            print(pasta_temp)
+            
+            pasta_temp_heroku = '/tmp/temp'
 
             # Obtém a extensão do arquivo
             extensao = imagem.filename.split('.')[-1]
 
             # Obtém o nome do arquivo com extensão
             arquivo = secure_filename(nome + '.' + extensao)
-            print(arquivo)
+           
+            # Verifica se o diretório temporário existe e, se não, cria-o
+            if not os.path.exists(pasta_temp_heroku):
+                os.makedirs(pasta_temp_heroku)
+            
 
-            caminho_completo = os.path.join(pasta_temp, arquivo)
-            imagem.save(caminho_completo)
+            caminho_completo = os.path.join(pasta_temp_heroku, arquivo)
+            imagem.save(os.path.join(pasta_temp_heroku, arquivo))
 
+            print('AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII')
             print(caminho_completo)
 
             # Nome do arquivo de chave de serviço
