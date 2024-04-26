@@ -218,7 +218,7 @@
                 quantidadeSpan.innerText = quantidade;
                 
                 // Atualizar estoque no back-end
-                atualizarEstoque(produtoId, quantidade, estoque);
+                atualizarEstoque(produtoId, quantidade, estoque, 'btn_aumentar');
 
                 // Chama a função calcularTotal
                 calcularTotal(quantidadeSpan); 
@@ -250,7 +250,7 @@
                 quantidadeSpan.innerText = quantidade;
 
                 // Atualizar estoque no back-end
-                atualizarEstoque(produtoId, quantidade, estoque);
+                atualizarEstoque(produtoId, quantidade, estoque, 'btn_diminuir');
 
                 // Chama a função calcularTotal
                 calcularTotal(quantidadeSpan); 
@@ -262,8 +262,8 @@
             }
         }
 
-        function atualizarEstoque(produtoId, quantidade, estoque) {
-            var data = { id: produtoId, quantidade: quantidade, estoque: estoque };
+        function atualizarEstoque(produtoId, quantidade, estoque, acao) {
+            var data = { id: produtoId, quantidade: quantidade, estoque: estoque, acao: acao };
 
             var xhr = new XMLHttpRequest();
             xhr.open('POST', '/atualizar_estoque', true);
@@ -367,7 +367,7 @@
 
             // Aqui você cria a solicitação XMLHttpRequest
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/remover_produto', true);
+            xhr.open('POST', '/remover_do_carrinho', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
 
             // Defina o callback para o evento 'onreadystatechange' para lidar com a resposta do servidor

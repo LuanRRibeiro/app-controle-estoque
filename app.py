@@ -6,17 +6,15 @@ from werkzeug.utils import secure_filename
 import psycopg2
 from google.cloud import storage
 import datetime
-import tempfile
 
 
 app = Flask(__name__)
 
 app.secret_key = 'sua_chave_secreta_aqui'
 
-lista_produtos_estoque = []
 carrinho_compras = []
 
-
+# Função que faz conexao do banco de dados
 def conexao_bd():
     host = "dpg-cof9fjq1hbls7399en5g-a.oregon-postgres.render.com"
     database = "bd_app_estoque"
@@ -29,6 +27,10 @@ def conexao_bd():
     except psycopg2.Error as e:
       print("Falha ao conectar ao banco de dados:", e)
       return None
+
+# Função para verificar se o usuário está autenticado
+def esta_autenticado():
+    return 'username' in session
 
 # Rota para a página de login
 @app.route('/', methods=['GET', 'POST'])
@@ -62,55 +64,6 @@ def login():
         
     return render_template('login.html')
 
-# Função para verificar se o usuário está autenticado
-def esta_autenticado():
-    return 'username' in session
-
-# Rota para usuario localizado
-@app.route('/painel')
-def painel():
-    if not esta_autenticado():
-        return redirect(url_for('login'))
-    
-    
-    if carrinho_compras == []:
-        # Essa busca produto, busca no banco de dados e carrega a lista na pagina
-        buscar_produto()
-        quantidade_itens_carrinho = 0
-    else:
-        # Atualiza a quantidade total de itens no carrinho
-        quantidade_itens_carrinho = calcular_quantidade_total_carrinho(carrinho_compras)
-        
-    
-    # Renderiza o template 'painel.html' passando a lista de produtos e a quantidade de itens no carrinho
-    return render_template('painel.html', produtos=lista_produtos_estoque, quantidade_itens_carrinho=quantidade_itens_carrinho)
-
-# Ao efetuar o login o função buscar_produto faz a busca e salva em uma lista_produtos_estoque
-def buscar_produto():
-    lista_produtos_estoque.clear()
-        
-    banco = conexao_bd()
-    cursor = banco.cursor()
-    
-    cursor.execute(f"SELECT * FROM produtos WHERE CAST(quantidade AS integer) >= 1")
-    produtos = cursor.fetchall()
-        
-    if produtos is not None:
-        for produto in produtos:
-            id = produto[0]
-            nome = produto[1]
-            quantidade = int(produto[2])
-            descricao = produto[3]
-            preco_compra = produto[4]
-            preco_venda = float(produto[5])
-            lucro_reais = produto[6]
-            lucro_porcentagem = produto[7]
-            imagem = produto[8]
-            
-            
-            
-            lista_produtos_estoque.append({'id': id, 'nome': nome, 'descricao': descricao, 'quantidade': quantidade, 'preco': preco_venda})
-
 # Rota para usuario não localizado
 @app.route('/erro')
 def erro():
@@ -121,6 +74,180 @@ def erro():
 def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
+
+# Rota para usuario localizado
+@app.route('/painel')
+def painel():
+    if not esta_autenticado():
+        return redirect(url_for('login'))
+    
+    
+    if carrinho_compras == []:
+        # Essa busca produto, busca no banco de dados e carrega a lista na pagina
+        quantidade_itens_carrinho = 0
+    else:
+        # Atualiza a quantidade total de itens no carrinho
+        quantidade_itens_carrinho = calcular_quantidade_total_carrinho(carrinho_compras)
+        
+    
+    # Renderiza o template 'painel.html' passando a lista de produtos e a quantidade de itens no carrinho
+    return render_template('painel.html', produtos='', quantidade_itens_carrinho=quantidade_itens_carrinho)
+
+# Buscar_produto no banco de dados
+@app.route('/buscar_produtos', methods=['POST'])
+def buscar_produtos():
+    termo = request.json['termo'].lower()
+
+    # Verifica se o termo está vazio
+    if not termo:
+        # Retorna uma lista vazia se o termo estiver vazio
+        return jsonify([])
+
+    banco = conexao_bd()
+    cursor = banco.cursor()
+
+    # Verificar se o termo é um número
+    if termo.isdigit():
+        # Se for número, busca pelo ID
+        cursor.execute("SELECT * FROM produtos WHERE CAST(quantidade AS integer) >= 1 AND id = %s", (termo,))
+    else:
+        # Se for uma string, busca pelo nome ou descrição
+        cursor.execute("SELECT * FROM produtos WHERE CAST(quantidade AS integer) >= 1 AND (LOWER(nome) LIKE %s OR LOWER(descricao) LIKE %s)", ('%' + termo + '%', '%' + termo + '%'))
+
+
+    produtos = cursor.fetchall()
+    
+    cursor.close()
+    banco.close()
+    
+    # Converta os resultados em uma lista de dicionários para jsonify
+    produtos_json = []
+    for produto in produtos:
+        produto_dict = {
+            'id': produto[0],
+            'nome': produto[1],
+            'quantidade': int(produto[2]),
+            'descricao': produto[3],
+            'preco_compra': produto[4],
+            'preco_venda': float(produto[5]),
+            'lucro_reais': produto[6],
+            'lucro_porcentagem': produto[7],
+            'imagem': produto[8]
+        }
+
+        # Retorna os produtos encontrados como JSON
+        produtos_json.append(produto_dict)
+    return jsonify(produtos_json)
+
+# Função que acessa pagina do carrinho
+@app.route('/carrinho')
+def carrinho():
+    if not esta_autenticado():
+        return redirect(url_for('login'))
+    # Acessando pagina do carrinho de compras
+
+    return render_template('carrinho.html', carrinho_compras=carrinho_compras)
+
+# Função que adiciona produto no carrinho
+@app.route('/adicionar_carrinho', methods=['POST'])
+def adicionar_carrinho():
+    produto = request.json
+    
+    # Verificar se o produto já está no carrinho
+    for item in carrinho_compras:
+        if item['id'] == produto['id']:
+            # Se o produto já está no carrinho, apenas atualiza a quantidade
+            item['quantidade'] += produto['quantidade']
+            item['estoque'] -= produto['quantidade']
+            break
+    else:
+        # Se o produto não está no carrinho, adiciona ele ao carrinho
+        carrinho_compras.append(produto)
+    
+    # Reduzir a quantidade do produto no banco de dados
+    diminuir_quantidade_produto_no_bd(produto['id'], produto['quantidade'])
+    
+    quantidade_itens_carrinho = calcular_quantidade_total_carrinho(carrinho_compras)
+
+    return jsonify({'message': 'Produto adicionado ao carrinho com sucesso', 'quantidadeItens': quantidade_itens_carrinho})
+
+
+# Função que remove item do carrinho
+@app.route('/remover_do_carrinho', methods=['POST'])
+def remover_produto_do_carrinho():
+    # Recebe os dados JSON enviados pela solicitação POST
+    dados_produto = request.json
+
+    # Obtém o ID do produto a ser removido
+    produto_id = dados_produto.get('id')
+    
+    # Remove o produto do carrinho de compras
+    for produto in carrinho_compras:
+        if int(produto['id']) == int(produto_id):
+            carrinho_compras.remove(produto)
+            # Reduzir a quantidade do produto no banco de dados
+            aumentar_quantidade_produto_no_bd(produto['id'], produto['quantidade'])
+            break
+    # Retorna uma resposta indicando sucesso
+    return jsonify({'message': 'Produto removido com sucesso'}), 200
+
+# Função para adicionar quantidade ao estoque do produto no banco de dados
+def aumentar_quantidade_produto_no_bd(id_produto, quantidade):
+    # Aqui você implementa a lógica para aumentar a quantidade do produto no banco de dados
+    # Exemplo:
+    banco = conexao_bd()
+    cursor = banco.cursor()
+    cursor.execute("UPDATE produtos SET quantidade = quantidade + %s WHERE id = %s", (quantidade, id_produto))
+    banco.commit()
+    cursor.close()
+    banco.close()
+
+# Função para diminuir quantidade do estoque do produto no banco de dados
+def diminuir_quantidade_produto_no_bd(id_produto, quantidade):
+    # Aqui você implementa a lógica para diminuir a quantidade do produto no banco de dados
+    # Exemplo:
+    banco = conexao_bd()
+    cursor = banco.cursor()
+    cursor.execute("UPDATE produtos SET quantidade = quantidade - %s WHERE id = %s", (quantidade, id_produto))
+    banco.commit()
+    cursor.close()
+    banco.close()
+
+# Função que calcula a quantide de itens no carrinho
+def calcular_quantidade_total_carrinho(carrinho_compras):
+    qtd_intens_carrinho = 0
+    for item in carrinho_compras:
+        quantidade = item['quantidade']
+        qtd_intens_carrinho += quantidade
+    
+    return qtd_intens_carrinho
+
+# Função que atualiza quantidade de produto em estoque conforme aumento ou diminui no carrinho
+@app.route('/atualizar_estoque', methods=['POST'])
+def atualizar_estoque():
+    produto = request.json
+    
+    produto_id = produto['id']
+    nova_quantidade = produto['quantidade']
+    estoque = produto['estoque']
+    acao = produto['acao']
+    
+    
+    for item in carrinho_compras:
+        if item['id'] == produto_id:
+            item['estoque'] = estoque
+            item['quantidade'] = nova_quantidade
+            item['valorTotal'] = nova_quantidade * item['preco']  # Atualiza o valor total também se necessário
+            break  # Encerra o loop após encontrar o produto
+    
+    # Se clicar no btn aumentar diminui a quantidade no bd
+    if acao == 'btn_aumentar':
+        diminuir_quantidade_produto_no_bd(produto['id'], 1)
+    else:
+        aumentar_quantidade_produto_no_bd(produto['id'], 1)
+                
+
+    return 'Estoque atualizado com sucesso.', 200
 
 # Rota para pagina de cadastrar produtos caso usuario esteja autenticado.
 @app.route('/cadastro_produtos')
@@ -168,12 +295,9 @@ def pagina_adicionar_produto():
             if not os.path.exists(pasta_temp_heroku):
                 os.makedirs(pasta_temp_heroku)
             
-
+            
             caminho_completo = os.path.join(pasta_temp_heroku, arquivo)
             imagem.save(os.path.join(pasta_temp_heroku, arquivo))
-
-            print('AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII')
-            print(caminho_completo)
 
             # Nome do arquivo de chave de serviço
             chave = 'projetoteste-398517-9de2939260b4.json'
@@ -233,7 +357,6 @@ def obter_url_imagem(nome_bucket, nome_blob):
     url = blob.generate_signed_url(expiration=datetime.timedelta(days=3652))
 
     return url
-
 
 # função que analisa se o produto ja esta cadastrado.
 def produto_existe(nome_produto):
@@ -344,106 +467,6 @@ def pagina_fora_estoque():
         for produto in produtos:
             produto['preco_formatado'] = formatar_valor(produto['preco'])
     return render_template('pagina_estoque.html', produtos=produtos, texto_h1=texto)
-    
-# Função que calcula a quantide de itens no carrinho
-def calcular_quantidade_total_carrinho(carrinho_compras):
-    qtd_intens_carrinho = 0
-    for item in carrinho_compras:
-        quantidade = item['quantidade']
-        qtd_intens_carrinho += quantidade
-    
-    return qtd_intens_carrinho
-
-# Função que adiciona produto no carrinho
-@app.route('/adicionar_carrinho', methods=['POST'])
-def adicionar_carrinho():
-    data = request.get_json()  # Obter os dados enviados pelo JavaScript
-    
-    id = data['id']
-    qtd = data['quantidade']
-  
-
-    # Atualizando A QUANTIDADE DO PRODUTO NO carrinho_compra
-    atualizar_quantidade_produto_carinho(carrinho_compras, id, qtd, data)
-
-    
-    # Atualizando A QUANTIDADE DO PRODUTO NA lista_produtos_estoque
-    atualizar_quantidade_produto_estoque(lista_produtos_estoque, id, qtd)
-
-    # Obtenha a quantidade total de itens no carrinho após a atualização
-    quantidade_itens_carrinho = calcular_quantidade_total_carrinho(carrinho_compras)
-
-    # Retorne a resposta JSON incluindo a mensagem de sucesso e a quantidade de itens no carrinho
-    return jsonify({'message': 'Produto adicionado ao carrinho com sucesso!', 'quantidadeItens': quantidade_itens_carrinho}), 200
-
-# Função que atualiza quantidade de produto lista estoque
-def atualizar_quantidade_produto_estoque(lista_produtos_estoque, id_produto, qnt_comprada):
-    for produto in lista_produtos_estoque:
-        if produto['id'] == int(id_produto):
-            produto['quantidade'] = produto['quantidade'] - int(qnt_comprada)
-            return True  # Produto encontrado e quantidade atualizada
-    return False  # Produto não encontrado na lista
-
-# Função que atualiza quantidade de produto no carrinho
-def atualizar_quantidade_produto_carinho(lista_carrinho, id_produto, qnt_comprada, data):
-    for produto in lista_carrinho:
-        if int(produto['id']) == int(id_produto):
-            produto['quantidade'] = int(produto['quantidade']) + int(qnt_comprada)
-            produto['estoque'] = int(produto['estoque']) - int(qnt_comprada)
-            return True  # Produto encontrado e quantidade atualizada
-        
-    carrinho_compras.append(data)  # Adicionar os dados ao carrinho de compras
-    return False  # Produto não encontrado na lista
-
-# Função que acessa pagina do carrinho
-@app.route('/carrinho')
-def carrinho():
-    if not esta_autenticado():
-        return redirect(url_for('login'))
-    # Acessando pagina do carrinho de compras
-    return render_template('carrinho.html', carrinho_compras=carrinho_compras)
-
-# Função que remove item do carrinho
-@app.route('/remover_produto', methods=['POST'])
-def remover_produto():
-    # Recebe os dados JSON enviados pela solicitação POST
-    data = request.json
-
-    # Obtém o ID do produto a ser removido
-    produto_id = data.get('id')
-    
-
-    # Remove o produto do carrinho de compras
-    for produto in carrinho_compras:
-        if int(produto['id']) == int(produto_id):
-            carrinho_compras.remove(produto)
-            break
-    # Retorna uma resposta indicando sucesso
-    return jsonify({'message': 'Produto removido com sucesso'}), 200
-
-# Função que atualiza quantidade de produto em estoque conforme aumento ou diminui no carrinho
-@app.route('/atualizar_estoque', methods=['POST'])
-def atualizar_estoque():
-    data = request.json
-    
-    produto_id = data['id']
-    nova_quantidade = data['quantidade']
-    estoque = data['estoque']
-    
-    for produto in carrinho_compras:
-        if produto['id'] == produto_id:
-            produto['estoque'] = estoque
-            produto['quantidade'] = nova_quantidade
-            produto['valorTotal'] = nova_quantidade * produto['preco']  # Atualiza o valor total também se necessário
-            break  # Encerra o loop após encontrar o produto
-    
-    
-    for produto in lista_produtos_estoque:
-        if produto['id'] == int(produto_id):
-            produto['quantidade'] = estoque
-            
-
-    return 'Estoque atualizado com sucesso.', 200
 
 @app.route('/pagina_pagamento', methods=['GET', 'POST'])
 def pagina_pagamento():
@@ -471,8 +494,8 @@ def finalizar_pagamento():
     
 
 if __name__ == '__main__':
-    #app.run()
-    app.run(debug=True)
+    app.run()
+    #app.run(debug=True)
     #app.run(host='0.0.0.0')
 
  

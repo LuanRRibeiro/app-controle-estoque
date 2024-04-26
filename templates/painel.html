@@ -173,14 +173,22 @@
 
         function buscarProduto() {
             var termo = document.getElementById('produto').value.toLowerCase();
-            var produtosFiltrados = produtos.filter(function(produto) {
-                if (!isNaN(termo)) { // Verifica se o termo é um número
-                    return produto.id == termo;
-                } else {
-                    return produto.nome.toLowerCase().includes(termo) || produto.descricao.toLowerCase().includes(termo);
+
+            // Envia uma requisição POST para o servidor Flask com o termo de busca
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/buscar_produtos', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        var produtos = JSON.parse(xhr.responseText);
+                        exibirProdutos(produtos);
+                    } else {
+                        console.error('Erro ao buscar produtos:', xhr.status);
+                    }
                 }
-            });
-            exibirProdutos(produtosFiltrados);
+            };
+            xhr.send(JSON.stringify({ termo: termo }));
         }
 
         function exibirProdutos(produtos) {
@@ -199,8 +207,8 @@
                         <span>1</span>
                         <button type="button" onclick="aumentarQuantidade(this)" class="btn-mais">+</button>
                     </td>
-                    <td>R$ ${produto.preco.toFixed(2)}</td>
-                    <td class="valor-total">R$ ${produto.preco.toFixed(2)}</td>
+                    <td>R$ ${produto.preco_venda.toFixed(2)}</td>
+                    <td class="valor-total">R$ ${produto.preco_venda.toFixed(2)}</td>
                     <td><button type="button" onclick="adicionarItem(this)" class="btn-adicionar">Adicionar</button></td>
                 `;
             });
