@@ -38,26 +38,25 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        
 
         banco = conexao_bd()
         cursor = banco.cursor()
 
-        sql = 'SELECT id, usuario, senha FROM usuario WHERE usuario = %s AND senha = %s'
+        sql = 'SELECT id, nome, login, senha FROM vendedores WHERE login = %s AND senha = %s'
 
         cursor.execute(sql, (username, password,))
         usuario = cursor.fetchone()
         
 
         # Se localizar Usuario e Senha Abre o Painel
-        if usuario is not None:
-            login = usuario[1]
-            senha = usuario[2]
-            
+        if usuario is not None:            
             cursor.close()
             banco.close()
         
             # Definir a sessão do usuário se as credenciais estiverem corretas
             session['username'] = username
+            session['password'] = password
             return redirect('/painel')
         else:
             return redirect('/erro')
@@ -81,7 +80,46 @@ def painel():
     if not esta_autenticado():
         return redirect(url_for('login'))
     
+
+
+    carrinho_compras.clear()
+
+    login = session.get('username')
+    senha = session.get('password')
+
+    # Verifica os itens no carrinho do usuário
+    sql_verificar = '''
+        SELECT produto_id, quantidade 
+        FROM itens_no_carrinho 
+        WHERE usuario_id = (SELECT id FROM vendedores WHERE login = %s AND senha = %s)
+    '''
+
+    banco = conexao_bd()
+    cursor = banco.cursor()
+    cursor.execute(sql_verificar, (login, senha))
+    resultado = cursor.fetchall()
     
+    for item in resultado:
+        produto_id = item[0]
+        quantidade_selecionada = item[1]
+
+        sql_verificar_produto = '''
+        SELECT nome, descricao, quantidade, preco_venda
+        FROM produtos 
+        WHERE id = %s'''
+
+        cursor.execute(sql_verificar_produto, (produto_id,))
+        resultado_produto = cursor.fetchone()
+        nome = resultado_produto[0]
+        descricao = resultado_produto[1]
+        estoque = resultado_produto[2]
+        preco = float(resultado_produto[3])
+
+        valor_total = float(preco * quantidade_selecionada)
+
+        carrinho_compras.append({'id': produto_id, 'nome': nome, 'descricao': descricao, 'estoque': estoque, 'quantidade': quantidade_selecionada, 'preco': preco, 'valorTotal': valor_total})
+
+
     if carrinho_compras == []:
         # Essa busca produto, busca no banco de dados e carrega a lista na pagina
         quantidade_itens_carrinho = 0
@@ -146,31 +184,104 @@ def carrinho():
         return redirect(url_for('login'))
     # Acessando pagina do carrinho de compras
 
+    carrinho_compras.clear()
+
+    login = session.get('username')
+    senha = session.get('password')
+
+    # Verifica os itens no carrinho do usuário
+    sql_verificar = '''
+        SELECT produto_id, quantidade 
+        FROM itens_no_carrinho 
+        WHERE usuario_id = (SELECT id FROM vendedores WHERE login = %s AND senha = %s)
+    '''
+
+    banco = conexao_bd()
+    cursor = banco.cursor()
+    cursor.execute(sql_verificar, (login, senha))
+    resultado = cursor.fetchall()
+    
+    for item in resultado:
+        produto_id = item[0]
+        quantidade_selecionada = item[1]
+
+        sql_verificar_produto = '''
+        SELECT nome, descricao, quantidade, preco_venda
+        FROM produtos 
+        WHERE id = %s'''
+
+        cursor.execute(sql_verificar_produto, (produto_id,))
+        resultado_produto = cursor.fetchone()
+        nome = resultado_produto[0]
+        descricao = resultado_produto[1]
+        estoque = resultado_produto[2]
+        preco = float(resultado_produto[3])
+
+        valor_total = float(preco * quantidade_selecionada)
+
+        carrinho_compras.append({'id': produto_id, 'nome': nome, 'descricao': descricao, 'estoque': estoque, 'quantidade': quantidade_selecionada, 'preco': preco, 'valorTotal': valor_total})
+        
+
     return render_template('carrinho.html', carrinho_compras=carrinho_compras)
 
 # Função que adiciona produto no carrinho
 @app.route('/adicionar_carrinho', methods=['POST'])
 def adicionar_carrinho():
+    if not esta_autenticado():
+        return redirect(url_for('login'))
+    
+    login = session.get('username')
+    senha = session.get('password')
+
     produto = request.json
-    
-    # Verificar se o produto já está no carrinho
-    for item in carrinho_compras:
-        if item['id'] == produto['id']:
-            # Se o produto já está no carrinho, apenas atualiza a quantidade
-            item['quantidade'] += produto['quantidade']
-            item['estoque'] -= produto['quantidade']
-            break
+    produto_id = produto['id']
+    quantidade = produto['quantidade']
+    preco_unitario = produto['preco']
+
+    # Verifica se o item já está no carrinho do usuário
+    sql_verificar = '''
+        SELECT COUNT(*) 
+        FROM itens_no_carrinho 
+        WHERE usuario_id = (SELECT id FROM vendedores WHERE login = %s AND senha = %s)
+        AND produto_id = %s
+    '''
+
+    banco = conexao_bd()
+    cursor = banco.cursor()
+    cursor.execute(sql_verificar, (login, senha, produto_id))
+    resultado = cursor.fetchone()
+    quantidade_produto_no_carrinho = resultado[0]
+
+    if quantidade_produto_no_carrinho > 0:
+        # Se o item já estiver no carrinho, atualiza a quantidade e o preço unitário
+        sql_update = '''
+            UPDATE itens_no_carrinho 
+            SET quantidade = quantidade + %s
+            WHERE usuario_id = (SELECT id FROM vendedores WHERE login = %s AND senha = %s)
+            AND produto_id = %s
+        '''
+        cursor.execute(sql_update, (quantidade, login, senha, produto_id))
     else:
-        # Se o produto não está no carrinho, adiciona ele ao carrinho
-        carrinho_compras.append(produto)
-    
+        # Se o item não estiver no carrinho, insere um novo registro
+        sql_insert = '''
+            INSERT INTO itens_no_carrinho (usuario_id, produto_id, quantidade, preco_unitario)
+            SELECT id, %s, %s, %s 
+            FROM vendedores 
+            WHERE login = %s AND senha = %s
+        '''
+        cursor.execute(sql_insert, (produto_id, quantidade, preco_unitario, login, senha))
+
+    banco.commit()
+    cursor.close()
+    banco.close()
+
+
     # Reduzir a quantidade do produto no banco de dados
-    diminuir_quantidade_produto_no_bd(produto['id'], produto['quantidade'])
+    diminuir_quantidade_produto_no_bd(produto['id'], produto['quantidade'], 'adicionar')
     
     quantidade_itens_carrinho = calcular_quantidade_total_carrinho(carrinho_compras)
 
     return jsonify({'message': 'Produto adicionado ao carrinho com sucesso', 'quantidadeItens': quantidade_itens_carrinho})
-
 
 # Função que remove item do carrinho
 @app.route('/remover_do_carrinho', methods=['POST'])
@@ -178,37 +289,78 @@ def remover_produto_do_carrinho():
     # Recebe os dados JSON enviados pela solicitação POST
     dados_produto = request.json
 
-    # Obtém o ID do produto a ser removido
-    produto_id = dados_produto.get('id')
     
-    # Remove o produto do carrinho de compras
-    for produto in carrinho_compras:
-        if int(produto['id']) == int(produto_id):
-            carrinho_compras.remove(produto)
-            # Reduzir a quantidade do produto no banco de dados
-            aumentar_quantidade_produto_no_bd(produto['id'], produto['quantidade'])
-            break
+    # Obtém o ID do produto a ser removido
+    produto_id = int(dados_produto.get('id'))
+
+
+    banco = conexao_bd()
+    cursor = banco.cursor()
+
+    sql_consultar = '''
+        SELECT quantidade
+        FROM itens_no_carrinho 
+        WHERE produto_id = %s'''
+
+    cursor.execute(sql_consultar, (produto_id,))
+    resultado = cursor.fetchone()
+    quantidade = resultado[0]
+
+    sql_remover = '''
+        DELETE FROM itens_no_carrinho 
+        WHERE produto_id = %s
+        '''
+    
+    cursor.execute(sql_remover, (produto_id,))
+    banco.commit()
+
+    cursor.close()
+    banco.close()
+    
+    aumentar_quantidade_produto_no_bd(produto_id, quantidade)
+          
     # Retorna uma resposta indicando sucesso
     return jsonify({'message': 'Produto removido com sucesso'}), 200
 
 # Função para adicionar quantidade ao estoque do produto no banco de dados
 def aumentar_quantidade_produto_no_bd(id_produto, quantidade):
     # Aqui você implementa a lógica para aumentar a quantidade do produto no banco de dados
-    # Exemplo:
     banco = conexao_bd()
     cursor = banco.cursor()
+
     cursor.execute("UPDATE produtos SET quantidade = quantidade + %s WHERE id = %s", (quantidade, id_produto))
+
+        
+    sql_atualizar = '''
+    UPDATE itens_no_carrinho 
+    SET quantidade = quantidade - %s
+    WHERE produto_id = %s'''
+
+    cursor.execute(sql_atualizar, (quantidade, int(id_produto)))
+
+
     banco.commit()
     cursor.close()
     banco.close()
 
 # Função para diminuir quantidade do estoque do produto no banco de dados
-def diminuir_quantidade_produto_no_bd(id_produto, quantidade):
+def diminuir_quantidade_produto_no_bd(id_produto, quantidade, tipo):
     # Aqui você implementa a lógica para diminuir a quantidade do produto no banco de dados
-    # Exemplo:
+    
     banco = conexao_bd()
     cursor = banco.cursor()
+
     cursor.execute("UPDATE produtos SET quantidade = quantidade - %s WHERE id = %s", (quantidade, id_produto))
+
+    if tipo == 'btn_aumentar':
+        sql_atualizar = '''
+        UPDATE itens_no_carrinho 
+        SET quantidade = quantidade + %s
+        WHERE produto_id = %s'''
+
+        cursor.execute(sql_atualizar, (quantidade, int(id_produto)))
+
+
     banco.commit()
     cursor.close()
     banco.close()
@@ -216,12 +368,22 @@ def diminuir_quantidade_produto_no_bd(id_produto, quantidade):
 # Função que calcula a quantide de itens no carrinho
 def calcular_quantidade_total_carrinho(carrinho_compras):
     qtd_intens_carrinho = 0
-    for item in carrinho_compras:
-        quantidade = item['quantidade']
-        qtd_intens_carrinho += quantidade
     
-    return qtd_intens_carrinho
+    
+    sql_verificar = '''
+        SELECT SUM(quantidade) AS total_quantidade 
+        FROM itens_no_carrinho 
+    '''
+    banco = conexao_bd()
+    cursor = banco.cursor()
+    cursor.execute(sql_verificar,)
+    total_quantidade = cursor.fetchone()[0]
 
+    cursor.close()
+    banco.close()
+
+    return total_quantidade
+    
 # Função que atualiza quantidade de produto em estoque conforme aumento ou diminui no carrinho
 @app.route('/atualizar_estoque', methods=['POST'])
 def atualizar_estoque():
@@ -242,7 +404,7 @@ def atualizar_estoque():
     
     # Se clicar no btn aumentar diminui a quantidade no bd
     if acao == 'btn_aumentar':
-        diminuir_quantidade_produto_no_bd(produto['id'], 1)
+        diminuir_quantidade_produto_no_bd(produto['id'], 1, 'btn_aumentar')
     else:
         aumentar_quantidade_produto_no_bd(produto['id'], 1)
                 
@@ -482,20 +644,18 @@ def finalizar_pagamento():
     cursor = banco.cursor()
 
     if request.method == 'POST':
-        for produto in carrinho_compras:
-            id_produto = produto['id']
-            quantidade_comprada = produto['quantidade']
-            cursor.execute("UPDATE produtos SET quantidade = quantidade - %s WHERE id = %s", (quantidade_comprada, id_produto))
-            banco.commit()
-        carrinho_compras.clear()
+        cursor.execute("DELETE FROM itens_no_carrinho;")
+        banco.commit()
+        cursor.close()
+        banco.close()
 
     mensagem = "Pagamento finalizado com sucesso!"
     return render_template('pedido_finalizado.html', mensagem=mensagem)
     
 
 if __name__ == '__main__':
-    app.run()
-    #app.run(debug=True)
+    #app.run()
+    app.run(debug=True)
     #app.run(host='0.0.0.0')
 
  
