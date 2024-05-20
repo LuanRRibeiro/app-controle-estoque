@@ -3,75 +3,126 @@ body {
     background-color: #f4f4f4;
     margin: 0;
     padding: 0;
-  }
+}
 
-  .tela-total {
-    display: flex;
-  }
-  
-  .container {
+.tela-total {
+  display: flex;
+  min-height: 100vh;  /* Garante que a tela ocupe pelo menos a altura total da viewport */
+  flex-direction: row; /* Alinha os elementos horizontalmente */
+}
+
+.container,
+.banner {
+    width: 50%; /* Divide a largura da tela igualmente entre .container e .banner */
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    flex: 1;
-    margin-right: 200px;
-    
-    
   }
 
-  .banner {
+.banner img {
+  width: 80vw; /* Define a largura da imagem em relação à largura da janela do navegador */
+  max-width: 580px; /* Define uma largura máxima para a imagem */
+  height: auto; /* Permite que a altura seja ajustada automaticamente para manter a proporção */
+}
+
+.login-form {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 5px;
+  box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+}
+
+.login-form h2 {
+  text-align: center;
+}
+
+.input-group {
+  margin-bottom: 15px;
+}
+
+.input-group label {
+  
+  margin-bottom: 5px;
+}
+
+.input-group input {
+  width: calc(100% - 20px);
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.error-message {
+  color: red;
+  margin: 10px 0;
+  height: 20px; /* Altura fixa para o contêiner da mensagem de erro */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  visibility: hidden; /* Torna o contêiner invisível, mas mantém o espaço reservado */
+  width: 100%;
+  font-size: 14.5px;
+  box-sizing: border-box;
+}
+
+.error-message.visible {
+  visibility: visible; /* Torna o contêiner visível quando a mensagem de erro é exibida */
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: #fff;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+@media screen and (max-width: 900px) {
+  .tela-total {
     display: flex;
-    justify-content: center; /* Centraliza horizontalmente */
+    flex-direction: column;
+  }
+
+  .container,
+  .banner {
+    width: 100%; /* Ambos ocupam toda a largura da tela */
+    height: 50vh; /* Ambos ocupam 50% da altura da tela */
+    flex: none; /* Desabilita o crescimento flexível para que ocupem apenas 50% */
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column-reverse;
     align-items: center;
-    flex: 1;
-    margin-left: 200px;
-    
+    justify-content: flex-end;
   }
 
   .banner img {
-    width: 550px; /* Largura desejada */
-    height: 450px; /* Altura desejada */
+    width: 100vw;
+    max-width: 500px;
+    height: auto;
   }
-  
+
   .login-form {
     background-color: #fff;
     padding: 20px;
     border-radius: 5px;
     box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+    margin-top: 0;
   }
-  
+
   .login-form h2 {
     text-align: center;
-  }
-  
-  .input-group {
+    margin: 0;
     margin-bottom: 15px;
   }
-  
-  .input-group label {
-    display: block;
-    margin-bottom: 5px;
-  }
-  
-  .input-group input {
-    width: calc(100% - 20px);
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-  }
-  
-  button {
-    width: 100%;
-    padding: 10px;
-    border: none;
-    border-radius: 5px;
-    background-color: #007bff;
-    color: #fff;
-    cursor: pointer;
-  }
-  
-  button:hover {
-    background-color: #0056b3;
-  }
-  
+}
+
+

@@ -32,14 +32,14 @@ def conexao_bd():
 def esta_autenticado():
     return 'username' in session
 
-# Rota para a página de login
+# Função para logar no app verificando login e senha
 @app.route('/', methods=['GET', 'POST'])
 def login():
+    error = None
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         
-
         banco = conexao_bd()
         cursor = banco.cursor()
 
@@ -48,7 +48,6 @@ def login():
         cursor.execute(sql, (username, password,))
         usuario = cursor.fetchone()
         
-
         # Se localizar Usuario e Senha Abre o Painel
         if usuario is not None:            
             cursor.close()
@@ -57,11 +56,16 @@ def login():
             # Definir a sessão do usuário se as credenciais estiverem corretas
             session['username'] = username
             session['password'] = password
-            return redirect('/painel')
+            return jsonify({'error': None})
         else:
-            return redirect('/erro')
+            error = 'Nome de usuário ou senha inválido(a)'
         
-    return render_template('login.html')
+        cursor.close()
+        banco.close()
+
+        return jsonify({'error': error})
+
+    return render_template('login.html', error=None)
 
 # Rota para usuario não localizado
 @app.route('/erro')
@@ -656,6 +660,6 @@ def finalizar_pagamento():
 if __name__ == '__main__':
     #app.run()
     app.run(debug=True)
-    #app.run(host='0.0.0.0')
+    #app.run(host='192.168.0.110')
 
  

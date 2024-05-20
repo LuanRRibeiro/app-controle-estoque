@@ -8,24 +8,73 @@
   <link rel="stylesheet" href="static/css/login.css">
 </head>
 <body>
-    <div class='tela-total'>
-      <div class="banner">
-        <img src="/static/imagem/logo.png" alt="Banner">
-      </div>
-      <div class="container">
-        <form class="login-form" action="/" method="post">
-          <h2>Login</h2>
-          <div class="input-group">
-            <label for="username">Usuário</label>
-            <input type="text" id="username" name="username" required>
-          </div>
-          <div class="input-group">
-            <label for="password">Senha</label>
-            <input type="password" id="password" name="password" required>
-          </div>
-          <button type="submit">Entrar</button>
-        </form>
-      </div>
+  <div class='tela-total'>
+    <div class="banner">
+      <img src="/static/imagem/logo.png" alt="Banner">
     </div>
-  </body>
+
+    <div class="container">
+      <form class="login-form" id="login-form" action="/" method="post">
+        <h2>Login</h2>
+
+        <div class="input-group">
+          <label for="username">Usuário</label>
+          <input type="text" id="username" name="username" required>
+        </div>
+
+        <div class="input-group">
+          <label for="password">Senha</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+
+        <div id="error-message" class="error-message"></div>
+        
+        <button type="submit">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', function(event) {
+      event.preventDefault(); // Impede o envio do formulário padrão
+      
+      // Coleta os dados do formulário
+      var formData = new FormData(this);
+
+      // Envia os dados para o servidor via AJAX
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/');
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          // Se a solicitação foi bem-sucedida, verifica a resposta do servidor
+          var response = JSON.parse(xhr.responseText);
+          if (response.error) {
+            console.log('Erro detectado:', response.error); // Adicione esta linha para depurar
+            // Se houver um erro, exibe a mensagem de erro
+            document.getElementById('error-message').textContent = response.error;
+            // Adicione a classe 'visible' para tornar o elemento visível
+            document.getElementById('error-message').classList.add('visible');
+            // Limpa apenas o campo de senha
+            document.getElementById('password').value = '';
+          } else {
+            // Se não houver erro, redireciona para o painel
+            window.location.href = '/painel';
+          }
+        }
+      };
+      xhr.send(formData);
+    });
+
+    // Adiciona um evento de escuta nos campos de entrada (username e password)
+    document.getElementById('username').addEventListener('input', function() {
+      // Remove a classe 'visible' do elemento error-message
+      document.getElementById('error-message').classList.remove('visible');
+    });
+
+    document.getElementById('password').addEventListener('input', function() {
+      // Remove a classe 'visible' do elemento error-message
+      document.getElementById('error-message').classList.remove('visible');
+    });
+  </script>
+</body>
 </html>
