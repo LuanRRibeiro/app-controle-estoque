@@ -1,0 +1,205 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f2f2f2;
+    padding-top: 56px; /* Altura da navbar */
+}
+
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+#container {
+    max-width: 1000px; /* Aumentado para usar mais espaço lateral */
+    margin: 0 auto;
+}
+
+.mt-4 {
+    margin-top: 0 !important;
+}
+
+h1 {
+    text-align: center;
+}
+
+#form {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#produto {
+    width: 100%;
+    max-width: 600px; /* Aumentado para usar mais espaço lateral */
+    text-align: center;
+    margin: 0 auto;
+}
+
+#compras-list, #selecao-list {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 15px; /* Aumentando o padding para criar mais espaço entre os dados */
+    border-bottom: 1px solid #ccc;
+    text-align: center;
+    vertical-align: middle; /* Alinhamento vertical ao centro */
+}
+
+.total {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.carrinho-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    cursor: pointer;
+}
+
+.quantidade-itens {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: red;
+    color: white;
+    border-radius: 50%;
+    padding: 5px;
+    font-size: 12px;
+}
+
+.btn-adicionar {
+    background-color: #90ee90;
+    color: white;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+.btn-menos {
+    background-color: #ff8080;
+    color: black;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+.btn-mais {
+    background-color: #90ee90;
+    color: black;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+/* Estilos para a div de sobreposição */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* cor de fundo semi-transparente */
+    display: none; /* ocultar inicialmente */
+    justify-content: center; /* centralizar horizontalmente */
+    align-items: center; /* centralizar verticalmente */
+    z-index: 9999; /* garantir que a div de sobreposição fique na frente de tudo */
+}
+
+/* Estilos para o GIF animado */
+.loading-gif {
+    width: 100px; /* ajuste o tamanho conforme necessário */
+    height: 100px; /* ajuste o tamanho conforme necessário */
+}
+
+.rotate-device {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: white;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 1000;
+}
+
+.rotate-device.visible {
+    display: flex;
+}
+
+.rotate-device-image {
+    display: block; /* Define a imagem como bloco */
+    margin: 0 auto; /* Centraliza a imagem horizontalmente */
+    max-width: 100px; /* Define o tamanho máximo da largura da imagem */
+    height: auto; /* Mantém a proporção da imagem */
+}
+
+.product-card {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Assegura espaço entre os elementos */
+    width: 100%; /* Assegura largura total */
+    box-sizing: border-box; /* Inclui padding e border na largura total */
+}
+
+.product-image {
+    max-width: 150px; /* ou qualquer valor preferido */
+    margin-right: 20px; /* Aumenta o espaçamento entre a imagem e os detalhes do produto */
+}
+
+.product-details {
+    flex-grow: 2; /* Aumenta a largura dos detalhes do produto */
+    margin-right: 20px; /* Reduz o espaçamento entre os detalhes e os botões de ação */
+}
+
+.product-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Alinha os botões de ação à direita */
+    min-width: 350px; /* Assegura largura mínima para a seção de ações */
+}
+
+.product-actions button {
+    margin: 0 10px; /* Adiciona espaçamento entre os botões */
+}
+
+.product-price {
+    font-size: 1.5em;
+    color: #333;
+    display: flex; /* Torna os elementos filhos flexíveis */
+    align-items: center; /* Alinha verticalmente os elementos filhos */
+    margin: 0 20px 0 0; /* Adiciona espaçamento à direita para separar dos botões */
+    min-width: 120px; /* Assegura largura mínima para a seção de preço */
+    text-align: right; /* Alinha o preço à direita */
+}
+
+.product-price span {
+    margin-left: 5px; /* Adiciona pequeno espaço entre o símbolo "R$" e o valor do preço */
+}
+
+.product-availability {
+    color: #888;
+}
+
+.product-card img {
+    max-width: 15%;
+}
+
+.codigo-produto {
+    font-size: 14px; /* ajuste conforme necessário */
+    font-weight: normal;
+    text-transform: lowercase; /* transforma o texto em letras minúsculas */
+}
+
+.product-details p {
+    margin-bottom: 12px;
+}

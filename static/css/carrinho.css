@@ -1,0 +1,151 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f2f2f2;
+    padding-top: 70px; /* Ajuste essa margem conforme necessário */
+}
+
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+#container {
+    max-width: 800px;
+    margin: 0 auto;
+    margin-top: 80px;
+}
+
+h1 {
+    text-align: center;
+}
+
+#form {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#produto {
+    width: 500px;
+    text-align: center;
+}
+
+#compras-list, #selecao-list {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,  td {
+    padding: 15px; /* Aumentando o padding para criar mais espaço entre os dados */
+    border-bottom: 1px solid #ccc;
+    text-align: center;
+    vertical-align: middle; /* Alinhamento vertical ao centro */
+}
+
+.total {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.carrinho-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    cursor: pointer;
+}
+
+.quantidade-itens {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: red;
+    color: white;
+    border-radius: 50%;
+    padding: 5px;
+    font-size: 12px;
+}
+
+.btn-remover {
+    background-color: #ff8080;
+    color: white;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+.btn-menos {
+    background-color: #ff8080;
+    color: black;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+.btn-mais {
+    background-color: #90ee90;
+    color: black;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+.card-img-top {
+    width: 50%;
+    height: auto;
+    max-height: 500px; /* Ajuste a altura máxima conforme necessário */
+    object-fit: cover; /* Para garantir que a imagem seja cortada proporcionalmente */
+    display: block; /* Garante que a imagem ocupe todo o espaço disponível */
+    margin: 0 auto;
+}
+
+.card-body {
+    flex-grow: 1;
+}
+
+.card-footer .btn-group .btn { /* Seletor mais específico para os botões do grupo */
+    padding: 0.25rem 0.5rem; /* Ajuste o padding para deixar os botões ainda menores */
+}
+
+.btn-group {
+    display: flex; /* Ativa o Flexbox */
+    align-items: center; /* Alinha os itens ao centro verticalmente */
+}
+
+.footer {
+    background-color: #f8f9fa; /* Cor de fundo do rodapé */
+    padding: 15px; /* Espaçamento interno */
+    border-top: 1px solid #dee2e6; /* Borda superior */
+    margin-top: 20px; /* Margem superior */
+    display: flex;
+    justify-content: space-between; /* Alinha itens ao longo do eixo principal */
+    align-items: center; /* Centraliza os itens verticalmente */
+    margin-bottom: 10px;
+}
+
+.total-sum {
+    margin: 0; /* Espaçamento superior do parágrafo */
+}
+
+.btn-finalizar {
+    white-space: nowrap; /* Evita que o texto do botão quebre em linhas */
+}
+
+/* Estilos para a div de sobreposição */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* cor de fundo semi-transparente */
+    display: none; /* ocultar inicialmente */
+    justify-content: center; /* centralizar horizontalmente */
+    align-items: center; /* centralizar verticalmente */
+    z-index: 9999; /* garantir que a div de sobreposição fique na frente de tudo */
+}
+
+/* Estilos para o GIF animado */
+.loading-gif {
+    width: 100px; /* ajuste o tamanho conforme necessário */
+    height: 100px; /* ajuste o tamanho conforme necessário */
+}

@@ -6,136 +6,25 @@
     <title>Controle de Estoque</title>
     <link rel="icon" href="/static/imagem/icone.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f2f2f2;
-        }
-
-        .navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-        }
-
-        #container {
-            max-width: 800px;
-            margin: 0 auto;
-            margin-top: 80px;
-        }
-
-        h1 {
-            text-align: center;
-        }
-
-        #form {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        #produto {
-            width: 500px;
-            text-align: center;
-        }
-
-        #compras-list, #selecao-list {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th,  td {
-            padding: 15px; /* Aumentando o padding para criar mais espaço entre os dados */
-            border-bottom: 1px solid #ccc;
-            text-align: center;
-            vertical-align: middle; /* Alinhamento vertical ao centro */
-        }
-
-        .total {
-            font-weight: bold;
-            margin-top: 10px;
-        }
-
-        .carrinho-icon {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            cursor: pointer;
-        }
-
-        .quantidade-itens {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            background-color: red;
-            color: white;
-            border-radius: 50%;
-            padding: 5px;
-            font-size: 12px;
-        }
-
-        .btn-adicionar {
-            background-color: #90ee90;
-            color: white;
-            font-weight: bold;
-            border-radius: 10px;
-        }
-
-        .btn-menos {
-            background-color: #ff8080;
-            color: black;
-            font-weight: bold;
-            border-radius: 10px;
-        }
-        
-        .btn-mais {
-            background-color: #90ee90;
-            color: black;
-            font-weight: bold;
-            border-radius: 10px;
-        }
-
-        /* Estilos para a div de sobreposição */
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5); /* cor de fundo semi-transparente */
-            display: none; /* ocultar inicialmente */
-            justify-content: center; /* centralizar horizontalmente */
-            align-items: center; /* centralizar verticalmente */
-            z-index: 9999; /* garantir que a div de sobreposição fique na frente de tudo */
-        }
-
-        /* Estilos para o GIF animado */
-        .loading-gif {
-            width: 100px; /* ajuste o tamanho conforme necessário */
-            height: 100px; /* ajuste o tamanho conforme necessário */
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/painel.css">
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
         <div class="container-fluid">
+            <a class="navbar-brand pg-inicial-center" href="/painel">Painel Vendas</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDarkDropdown" aria-controls="navbarNavDarkDropdown" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="collapse navbar-collapse" id="navbarNavDarkDropdown">
-
-                <a class="navbar-brand pg-inicial-center" href="/painel">Painel Vendas</a>
-
-                <ul class="navbar-nav">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item dropdown">
                         <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Produtos</button>
                         <ul class="dropdown-menu dropdown-menu-dark">
                             <li><a class="dropdown-item" href="/cadastro_produtos">Cadastrar</a></li>
                         </ul>
                     </li>
-                </ul>
-                
-                <ul class="navbar-nav">
                     <li class="nav-item dropdown">
                         <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Estoque</button>
                         <ul class="dropdown-menu dropdown-menu-dark">
@@ -144,44 +33,26 @@
                         </ul>
                     </li>
                 </ul>
-
-                
+                <a class="navbar-brand" href="/logout">Sair</a>
             </div>
-            <a class="navbar-brand pg-inicial-center" href="/logout">Sair</a>
         </div>
     </nav>
 
     <!-- Div de sobreposição -->
-    <div class="overlay" id="overlay">
-        <!-- GIF animado -->
+    <div class="overlay" id="overlay" style="display:none;">
         <img src="https://www.doutoresdoexcel.com.br/wp-content/uploads/2021/07/Loading-PNG.gif" class="loading-gif" alt="Loading...">
     </div>
 
     <!-- Conteúdo principal -->
-    <div id="container">
+    <div id="container" class="container mt-4 pt-5">
         <h1>Painel de Vendas</h1>
-        <form id="form">
-            <input type="text" id="produto" placeholder="ID ou Nome do Produto" oninput="buscarProduto()">
-             <br>
+        <form id="form" onsubmit="event.preventDefault(); buscarProduto();">
+            <input type="text" id="produto" placeholder="ID ou Nome do Produto" class="form-control mb-3" oninput="debouncedBuscarProduto()">
         </form>
-        <br>
         
-      
-        <table id="compras-list">
-            <thead>
-                <tr>
-                    <th>Id</th>
-                    <th>Produto</th>
-                    <th>Descrição</th>
-                    <th>Estoque</th>
-                    <th>Quantidade</th>
-                    <th>Valor Unitário</th>
-                    <th>Valor Total</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody id="produtos-body"></tbody>
-        </table>
+        <div id="compras-list" class="row">
+            <!-- Produtos serão inseridos aqui -->
+        </div>
     </div>
 
     <!-- Botão do carrinho de compras -->
@@ -190,70 +61,82 @@
         <img src="/static/imagem/carrinho.png" alt="Carrinho de compras">
     </div>
 
-    <br><br>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
+    
     <script>
         var produtos = {{ produtos | tojson | safe }};
-       
-        function logout() {
-            window.location.href = "/logout";
+        var timeout = null;
+
+        async function buscarProduto() {
+            const termo = document.getElementById('produto').value.toLowerCase();
+            exibirLoading();
+
+            try {
+                const response = await fetch('/buscar_produtos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ termo: termo })
+                });
+                const data = await response.json();
+                exibirProdutos(data);
+            } catch (error) {
+                console.error('Erro ao buscar produtos:', error);
+            } finally {
+                esconderLoading();
+            }
         }
 
-        function buscarProduto() {
-            var termo = document.getElementById('produto').value.toLowerCase();
+        function debouncedBuscarProduto() {
+            clearTimeout(timeout);
+            timeout = setTimeout(buscarProduto, 500); // 500ms delay
+        }
 
-            // Envia uma requisição POST para o servidor Flask com o termo de busca
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/buscar_produtos', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === XMLHttpRequest.DONE) {
-                    if (xhr.status === 200) {
-                        var produtos = JSON.parse(xhr.responseText);
-                        exibirProdutos(produtos);
-                    } else {
-                        console.error('Erro ao buscar produtos:', xhr.status);
-                    }
-                }
-            };
-            xhr.send(JSON.stringify({ termo: termo }));
+        function createElementFromHTML(htmlString) {
+            var div = document.createElement('div');
+            div.innerHTML = htmlString.trim();
+            return div.firstChild; 
         }
 
         function exibirProdutos(produtos) {
-            var tabelaProdutos = document.getElementById('produtos-body');
-            tabelaProdutos.innerHTML = '';
+            var listaCompras = document.getElementById('compras-list');
+            listaCompras.innerHTML = '';
 
             produtos.forEach(function(produto) {
-                var row = tabelaProdutos.insertRow();
-                row.innerHTML = `
-                    <td>${produto.id}</td>
-                    <td>${produto.nome}</td>
-                    <td>${produto.descricao}</td>
-                    <td>${produto.quantidade}</td>
-                    <td>
-                        <button type="button" onclick="diminuirQuantidade(this)" class="btn-menos">-</button>
-                        <span>1</span>
-                        <button type="button" onclick="aumentarQuantidade(this)" class="btn-mais">+</button>
-                    </td>
-                    <td>R$ ${produto.preco_venda.toFixed(2)}</td>
-                    <td class="valor-total">R$ ${produto.preco_venda.toFixed(2)}</td>
-                    <td><button type="button" onclick="adicionarItem(this)" class="btn-adicionar">Adicionar</button></td>
+                var produtoHTML = `
+                    <div class="col-12">
+                        <div class="product-card d-flex" data-preco-venda="${produto.preco_venda}" data-id="${produto.id}">
+                            <img src="${produto.imagem}" alt="${produto.nome}" class="product-image">
+                            <div class="product-details">
+                                <p class="codigo-produto">Código: ${produto.id}</p>
+                                <h5 class="nome-produto">${produto.nome}</h5>
+                                <p>${produto.descricao}</p>
+                                <p class="product-availability">+${produto.quantidade} disponíveis</p>
+                            </div>
+                            <div class="product-actions d-flex align-items-center justify-content-between">
+                                <button type="button" onclick="diminuirQuantidade(this)" class="btn btn-outline-secondary">-</button>
+                                <span class="mx-2">1</span>
+                                <button type="button" onclick="aumentarQuantidade(this)" class="btn btn-outline-secondary">+</button>
+                                <p class="product-price align-self-center">R$ <span class="price-value">${produto.preco_venda.toFixed(2)}</span></p>
+                                <button type="button" onclick="adicionarItemCarrinho(this)" class="btn btn-primary"><i class="bi bi-cart-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>
                 `;
+                listaCompras.appendChild(createElementFromHTML(produtoHTML));
             });
         }
 
         function aumentarQuantidade(button) {
             var quantidadeSpan = button.parentNode.querySelector('span');
             var quantidade = parseInt(quantidadeSpan.innerText);
-            var estoque = parseInt(button.parentNode.previousElementSibling.innerText); // Obtém o valor do estoque da célula anterior
+            var estoque = parseInt(button.parentNode.parentNode.querySelector('.product-availability').innerText.match(/\d+/)[0]);
 
             if (quantidade < estoque) {
                 quantidade++;
                 quantidadeSpan.innerText = quantidade;
-                calcularTotal(quantidadeSpan); // Chama a função calcularTotal
-                atualizarTotal();
+                calcularTotal(); 
             } else {
                 alert('Quantidade máxima atingida.');
             }
@@ -262,43 +145,51 @@
         function diminuirQuantidade(button) {
             var quantidadeSpan = button.parentNode.querySelector('span');
             var quantidade = parseInt(quantidadeSpan.innerText);
+            
             if (quantidade > 1) {
                 quantidade--;
                 quantidadeSpan.innerText = quantidade;
-                calcularTotal(quantidadeSpan); // Chama a função calcularTotal
-                atualizarTotal();
+                calcularTotal();
             }
         }
 
-        function calcularTotal(input) {
-            var linha = input.parentNode.parentNode; // Obtém a linha (tr) onde o input está localizado
-            var quantidade = parseInt(input.parentNode.querySelector('span').innerText); // Obtém a quantidade de itens
-            var precoUnitario = parseFloat(linha.querySelector('td:nth-child(6)').innerText.substring(3)); // Obtém o valor unitário da quinta célula (coluna) da linha
-            var totalItem = precoUnitario * quantidade; // Calcula o valor total do item
-
-            // Atualiza o valor total na última célula (coluna) da linha
-            linha.querySelector('.valor-total').innerText = 'R$ ' + totalItem.toFixed(2);
+        function calcularTotal() {
+            var produtos = document.querySelectorAll('.product-card');
+            
+            produtos.forEach(function(produtoCard) {
+                var precoVenda = parseFloat(produtoCard.dataset.precoVenda);
+                var quantidade = parseInt(produtoCard.querySelector('span').innerText);
+                var precoTotal = precoVenda * quantidade;
+                
+                produtoCard.querySelector('.price-value').innerText = precoTotal.toFixed(2);
+            });
         }
 
-        function adicionarItem(button) {
-            var linha = button.parentNode.parentNode; // Obtém a linha (tr) onde o botão foi clicado
-            var id = linha.querySelector('td:nth-child(1)').innerText;
-            var nome = linha.querySelector('td:nth-child(2)').innerText;
-            var descricao = linha.querySelector('td:nth-child(3)').innerText;
-            var estoque = parseInt(linha.querySelector('td:nth-child(4)').innerText);
-            var quantidade = parseInt(linha.querySelector('td:nth-child(5) span').innerText);
-            var preco = parseFloat(linha.querySelector('td:nth-child(6)').innerText.substring(3));
-            var valorTotal = parseFloat(linha.querySelector('td:nth-child(7)').innerText.substring(3));
-            exibirLoading()
-            // Verificar se há estoque disponível
+        function exibirLoading() {
+            var overlay = document.querySelector('.overlay');
+            overlay.style.display = 'flex';
+        }
+        
+        function esconderLoading() {
+            var overlay = document.querySelector('.overlay');
+            overlay.style.display = 'none';
+        }
+
+        async function adicionarItemCarrinho(button) {
+            var card = button.closest('.product-card');
+            var id = card.getAttribute('data-id');
+            var nome = card.querySelector('.nome-produto').innerText;
+            var descricao = card.querySelector('.product-details p:nth-child(3)').innerText;
+            var estoque = parseInt(card.querySelector('.product-availability').innerText.match(/\d+/)[0]);
+            var quantidade = parseInt(card.querySelector('.product-actions span').innerText);
+            var preco = parseFloat(card.querySelector('.price-value').innerText);
+            var valorTotal = preco * quantidade;
+
             if (quantidade <= estoque) {
-                // Subtrair a quantidade do estoque
+                exibirLoading();
                 estoque -= quantidade;
-                
-                // Atualizar a quantidade no HTML
-                linha.querySelector('td:nth-child(4)').innerText = estoque;
-                
-                // Crie um objeto com os detalhes do produto
+                card.querySelector('.product-availability').innerText = `+${estoque} disponíveis`;
+
                 var produto = {
                     id: id,
                     nome: nome,
@@ -309,61 +200,39 @@
                     valorTotal: valorTotal
                 };
 
-                // Enviar o objeto para o Flask
-                enviarParaFlask(produto);
+                try {
+                    const response = await fetch('/adicionar_carrinho', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(produto)
+                    });
+
+                    if (response.ok) {
+                        const resposta = await response.json();
+                        atualizarQuantidadeItensCarrinho(resposta.quantidadeItens);
+                    } else {
+                        alert('Erro ao adicionar produto ao carrinho.');
+                    }
+                } catch (error) {
+                    console.error('Erro ao enviar produto:', error);
+                } finally {
+                    esconderLoading();
+                }
             } else {
                 alert('Quantidade indisponível no estoque.');
             }
         }
 
-        function enviarParaFlask(produto) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/adicionar_carrinho', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === XMLHttpRequest.DONE) {
-                    if (xhr.status === 200) {
-                        var resposta = JSON.parse(xhr.responseText); // Converte a resposta em um objeto JSON
-                        atualizarQuantidadeItensCarrinho(resposta.quantidadeItens); // Atualiza a quantidade de itens no carrinho
-                        esconderLoading()
-                    } else {
-                        esconderLoading()
-                        alert('Erro ao adicionar produto ao carrinho.');
-                    }
-                }
-            }
-            xhr.send(JSON.stringify(produto)); // Envie os dados para o Flask
-        }
-    </script>
-
-    <script>
-        // Função para redirecionar para a página do carrinho de compras
-        function irParaCarrinho() {
-            window.location.href = "/carrinho"; // Substitua "carrinho.html" pelo caminho real da sua página do carrinho
-        }
-        
-        // Função para atualizar a quantidade de itens no carrinho
         function atualizarQuantidadeItensCarrinho(quantidade) {
             var spanQuantidade = document.getElementById('quantidade-itens-carrinho');
             spanQuantidade.innerText = quantidade;
         }
-    </script>
 
-    <!-- Scripts para o overlay e o GIF animado -->
-    <script>
-        // Função para exibir o GIF animado e bloquear a interação do usuário
-        function exibirLoading() {
-            document.getElementById('overlay').style.display = 'flex'; // exibe a div de sobreposição
+        function irParaCarrinho() {
+            window.location.href = "/carrinho";
         }
-
-        // Função para ocultar o GIF animado e restaurar a interação do usuário
-        function esconderLoading() {
-            document.getElementById('overlay').style.display = 'none'; // oculta a div de sobreposição
-        }
-
-        // Chame a função exibirLoading() quando necessário, por exemplo, antes de enviar uma solicitação AJAX
-        // Chame a função esconderLoading() quando a operação estiver concluída
     </script>
-
 </body>
 </html>

@@ -1,0 +1,90 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+h1 {
+    margin-top: 30px;
+    text-align: center;
+}
+
+form {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+input[type="text"] {
+    padding: 8px;
+    font-size: 16px;
+}
+
+button {
+    padding: 8px 16px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+    cursor: pointer; /* Adicionando cursor pointer para indicar que é clicável */
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+#resultado {
+    
+    margin: auto;
+    max-width: 800px;
+}
+
+#lista-produtos {
+    list-style-type: none;
+    padding: 0;
+}
+
+#lista-produtos li {
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.sortable-column:hover {
+    cursor: pointer;
+}
+
+.rotate-device {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: white;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 1000;
+}
+
+.rotate-device.visible {
+    display: flex;
+}
+
+.rotate-device-image {
+    display: block; /* Define a imagem como bloco */
+    margin: 0 auto; /* Centraliza a imagem horizontalmente */
+    max-width: 100px; /* Define o tamanho máximo da largura da imagem */
+    height: auto; /* Mantém a proporção da imagem */
+}

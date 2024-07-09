@@ -84,8 +84,6 @@ def painel():
     if not esta_autenticado():
         return redirect(url_for('login'))
     
-
-
     carrinho_compras.clear()
 
     login = session.get('username')
@@ -114,6 +112,7 @@ def painel():
 
         cursor.execute(sql_verificar_produto, (produto_id,))
         resultado_produto = cursor.fetchone()
+        
         nome = resultado_produto[0]
         descricao = resultado_produto[1]
         estoque = resultado_produto[2]
@@ -210,7 +209,7 @@ def carrinho():
         quantidade_selecionada = item[1]
 
         sql_verificar_produto = '''
-        SELECT nome, descricao, quantidade, preco_venda
+        SELECT nome, descricao, quantidade, preco_venda, caminho_imagem
         FROM produtos 
         WHERE id = %s'''
 
@@ -220,10 +219,11 @@ def carrinho():
         descricao = resultado_produto[1]
         estoque = resultado_produto[2]
         preco = float(resultado_produto[3])
+        imagem = resultado_produto[4]
 
         valor_total = float(preco * quantidade_selecionada)
 
-        carrinho_compras.append({'id': produto_id, 'nome': nome, 'descricao': descricao, 'estoque': estoque, 'quantidade': quantidade_selecionada, 'preco': preco, 'valorTotal': valor_total})
+        carrinho_compras.append({'id': produto_id, 'nome': nome, 'descricao': descricao, 'estoque': estoque, 'quantidade': quantidade_selecionada, 'preco': preco, 'valorTotal': valor_total, 'imagem':imagem})
         
 
     return render_template('carrinho.html', carrinho_compras=carrinho_compras)
@@ -634,13 +634,10 @@ def pagina_fora_estoque():
             produto['preco_formatado'] = formatar_valor(produto['preco'])
     return render_template('pagina_estoque.html', produtos=produtos, texto_h1=texto)
 
-@app.route('/pagina_pagamento', methods=['GET', 'POST'])
+@app.route('/pagina_pagamento', methods=['GET'])
 def pagina_pagamento():
-    total = None
-    if request.method == 'POST':
-        data = request.json
-        total = data.get('total')
-    return render_template('pagamento.html', total=total)
+    total = request.args.get('total', 0.00)
+    return render_template('pagamento.html', total=float(total))
 
 @app.route('/finalizar_pagamento', methods=['GET', 'POST'])
 def finalizar_pagamento():
@@ -655,7 +652,7 @@ def finalizar_pagamento():
 
     mensagem = "Pagamento finalizado com sucesso!"
     return render_template('pedido_finalizado.html', mensagem=mensagem)
-    
+
 
 if __name__ == '__main__':
     #app.run()
