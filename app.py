@@ -47,15 +47,26 @@ def login():
 
         cursor.execute(sql, (username, password,))
         usuario = cursor.fetchone()
-        
+
+
         # Se localizar Usuario e Senha Abre o Painel
-        if usuario is not None:            
+        if usuario is not None:
+            # Contabilizando acesso de cada usuario  
+            id_usuario = usuario[0]
+            cursor.execute('UPDATE vendedores SET acesso = acesso + 1 WHERE id = %s', (id_usuario,))
+            banco.commit()
+
             cursor.close()
             banco.close()
-        
+
+
             # Definir a sessão do usuário se as credenciais estiverem corretas
             session['username'] = username
             session['password'] = password
+
+
+            
+
             return jsonify({'error': None})
         else:
             error = 'Nome de usuário ou senha inválido(a)'
@@ -652,6 +663,7 @@ def finalizar_pagamento():
     mensagem = "Pagamento finalizado com sucesso!"
     return render_template('pedido_finalizado.html', mensagem=mensagem)
 
+#@app.route('/contagem_acesso', methods=['GET', 'POST'])
 
 if __name__ == '__main__':
     #app.run()
