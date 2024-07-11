@@ -92,7 +92,6 @@
                 if (!produtosAgrupados[produto.id]) {
                     produtosAgrupados[produto.id] = {
                         ...produto,
-                        quantidade: 1,
                         valorTotal: produto.valorTotal.toFixed(2)
                     };
                 } else {
@@ -132,12 +131,17 @@
             atualizarTotal();
         }
 
-        function aumentarQuantidade(button) {
+        async function aumentarQuantidade(button) {
+            var card = button.closest('.card');
+            var id = card.getAttribute('data-id');
+            
             var quantidadeSpan = button.parentNode.querySelector('span');
             var quantidade = parseInt(quantidadeSpan.innerText);
-            var card = button.closest('.card');
             var estoqueSpan = card.querySelector('.text-muted');
             var estoque = parseInt(estoqueSpan.innerText.split(': ')[1]);
+            var valorTotal = parseFloat(card.querySelector('.price-value').innerText);
+            var preco = valorTotal / quantidade
+
 
             if (estoque > 0) {
                 quantidade++;
@@ -146,18 +150,37 @@
                 estoqueSpan.innerText = "Estoque: " + estoque;
                 calcularTotal(card, quantidade, btn='+');
                 atualizarTotal();
+                                                
+                var produto = {
+                    id: id,
+                    quantidade: 1,
+                    preco: preco,
+                };
+
+                const response = await fetch('/adicionar_carrinho', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(produto)
+                });
+                
+
             } else {
                 alert('Quantidade máxima atingida.');
             }
         }
 
-        function diminuirQuantidade(button) {
+        async function diminuirQuantidade(button) {
+            var card = button.closest('.card');
+            var id = card.getAttribute('data-id');
             var quantidadeSpan = button.parentNode.querySelector('span');
             var quantidade = parseInt(quantidadeSpan.innerText);
-            var card = button.closest('.card');
             var estoqueSpan = card.querySelector('.text-muted');
             var estoque = parseInt(estoqueSpan.innerText.split(': ')[1]);
             var estoqueOriginal = parseInt(card.getAttribute('data-estoque-original')); // Obtém o estoque original
+            var valorTotal = parseFloat(card.querySelector('.price-value').innerText);
+            var preco = valorTotal / quantidade
 
             if (quantidade > 1) {
                 quantidade--;
@@ -166,6 +189,21 @@
                 quantidadeSpan.innerText = quantidade;
                 calcularTotal(card, quantidade, btn='-');
                 atualizarTotal();
+
+                var produto = {
+                    id: id,
+                    quantidade: -1,
+                    preco: preco,
+                };
+
+                const response = await fetch('/adicionar_carrinho', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(produto)
+                });
+
             } else {
                 if (confirm("Deseja remover o item do carrinho?")) {
                     removerItem(button);

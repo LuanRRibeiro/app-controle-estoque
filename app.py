@@ -373,7 +373,6 @@ def diminuir_quantidade_produto_no_bd(id_produto, quantidade, tipo):
 def calcular_quantidade_total_carrinho(carrinho_compras):
     qtd_intens_carrinho = 0
     
-    
     sql_verificar = '''
         SELECT SUM(quantidade) AS total_quantidade 
         FROM itens_no_carrinho 
