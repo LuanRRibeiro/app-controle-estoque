@@ -746,7 +746,7 @@ def enviar_email_recuperacao(email_destinatario, link_redefinicao, token_redefin
     msg = EmailMessage()
     msg.set_content(f'''Clique no link abaixo para redefinir sua senha:
                     
-http://127.0.0.1:5000/pagina_nova_senha?token={token_redefinicao}
+https://app-controle-estoque.onrender.com//pagina_nova_senha?token={token_redefinicao}
     
 Validade: 15 Minutos
 Expira em: {data_hora_formatada}
