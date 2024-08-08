@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recuperação de Senha</title>
+    <link rel="stylesheet" href="/static/css/pagina_recuperar_senha.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Redefinição de Senha</h1>
+        <form id="redefinir-senha-form">
+            <label for="nova-senha">Digite a nova senha:</label>
+            <input type="password" id="nova-senha" name="nova-senha" required>
+            <br>
+            <label for="repetir-senha">Repita a nova senha:</label>
+            <input type="password" id="repetir-senha" name="repetir-senha" required>
+            <br>
+            <button type="submit">Alterar</button>
+        </form>
+        <div id="message"></div>
+    </div>
+    <script src="/static/js/nova_senha.js"></script>
+</body>
+</html>

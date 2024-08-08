@@ -1,290 +1,135 @@
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    margin: 0;
-    padding: 0;
-}
-
-.tela-total {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  height: 100vh;
   display: flex;
-  min-height: 100vh;  /* Garante que a tela ocupe pelo menos a altura total da viewport */
-  flex-direction: row; /* Alinha os elementos horizontalmente */
+  justify-content: center;
+  align-items: center;
+  background: #f0f0f0;
 }
 
-.container,
-.banner {
-    width: 50%; /* Divide a largura da tela igualmente entre .container e .banner */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-.banner img {
-  width: 80vw; /* Define a largura da imagem em relação à largura da janela do navegador */
-  max-width: 580px; /* Define uma largura máxima para a imagem */
-  height: auto; /* Permite que a altura seja ajustada automaticamente para manter a proporção */
+.split-container {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  align-items: stretch; /* Garante que ambos os lados tenham a mesma altura */
 }
 
-.login-form {
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 5px;
-  box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+.image-container, .login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.login-form h2 {
-  text-align: center;
+.image-container {
+  flex: 1;
+  max-width: 50%; /* Define um tamanho máximo para a largura */
+  background: #f38a69; /* Cor de fundo */
+  border-radius: 20px; /* Cantos arredondados */
+  padding: 20px; /* Espaçamento interno */
+  margin: 20px 0px 20px 20px; /* Espaçamento externo para evitar encostar nas bordas */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra para efeito de profundidade */background: #f38a69; /* Cor de fundo ou imagem de fundo */
+}
+
+.image-container img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 20px; /* Mantém os cantos arredondados da imagem */
+  object-fit: cover;
+}
+
+.login-container {
+  background: #fff;
+  padding: 40px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  margin: 20px 20px 20px 5px; /* Espaçamento externo para evitar encostar nas bordas */
+  
+}
+
+.login-box {
+  max-width: 400px;
+  width: 100%;
+  
+}
+
+h2 {
+  margin-bottom: 20px;
+  color: #333;
+  border-bottom: 2px solid #f38a69;
+  display: inline-block;
+  padding-bottom: 5px;
 }
 
 .input-group {
   margin-bottom: 15px;
+  text-align: left;
 }
 
-.input-group label {
-  
-  margin-bottom: 5px;
-}
-
-.input-group input {
-  width: calc(100% - 20px);
+input[type="email"],
+input[type="password"] {
+  width: 100%;
   padding: 10px;
+  margin: 5px 0;
+  box-sizing: border-box;
   border: 1px solid #ccc;
   border-radius: 5px;
-  text-align: center;
 }
 
-.error-message {
-  color: red;
-  margin: 10px 0;
-  height: 20px; /* Altura fixa para o contêiner da mensagem de erro */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  visibility: hidden; /* Torna o contêiner invisível, mas mantém o espaço reservado */
-  width: 100%;
-  font-size: 14.5px;
-  box-sizing: border-box;
-}
-
-.error-message.visible {
-  visibility: visible; /* Torna o contêiner visível quando a mensagem de erro é exibida */
+input[type="checkbox"] {
+  margin-right: 10px;
 }
 
 button {
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-radius: 5px;
   background-color: #007bff;
   color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
   cursor: pointer;
-  margin-top: 5px;
 }
 
 button:hover {
   background-color: #0056b3;
 }
 
-/* Telefone Pequeno - Portrait */
-@media screen and (max-width: 600px) and (min-height: 600px) {
-  .tela-total {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .container, .banner {
-    width: 100%;
-    height: 50vh;
-    flex: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .banner img {
-    width: 100%;
-    max-width: 400px;
-    height: auto;
-  }
-
-  .login-form {
-    width: 90%;
-    max-width: 300px;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 5px;
-    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
-    text-align: center;
-  }
+p {
+  margin-top: 10px;
 }
 
-/* Telefone Pequeno - Landscape */
-@media screen and (max-height: 600px) and (min-width: 600px) {
-  .tela-total {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .container, .banner {
-    width: 50%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .banner img {
-    width: 100%;
-    max-width: 400px;
-    height: auto;
-  }
-
-  .login-form {
-    width: 80%;
-    max-width: 300px;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 5px;
-    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
-    text-align: center;
-  }
+a {
+  color: #007bff;
+  text-decoration: none;
 }
 
-/* Telefone Médio a Grande e Tablet Pequeno - Portrait */
-@media screen and (min-width: 600px) and (max-width: 900px) and (min-height: 600px) {
-  .tela-total {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .container, .banner {
-    width: 100%;
-    height: 50vh;
-    flex: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .banner img {
-    width: 100%;
-    max-width: 500px;
-    height: auto;
-  }
-
-  .login-form {
-    width: 80%;
-    max-width: 400px;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 5px;
-    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
-    text-align: center;
-  }
+a:hover {
+  text-decoration: underline;
 }
 
-/* Telefone Médio a Grande e Tablet Pequeno - Landscape */
-@media screen and (min-height: 600px) and (max-height: 900px) and (min-width: 900px) {
-  .tela-total {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .container, .banner {
-    width: 50%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .banner img {
-    width: 100%;
-    max-width: 500px;
-    height: auto;
-  }
-
-  .login-form {
-    width: 70%;
-    max-width: 400px;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 5px;
-    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
-    text-align: center;
-  }
+.error-message {
+  display: none;
+  color: red;
+ 
+  
+  text-align: center;
 }
 
-/* Dispositivos Maiores e Tablets - Portrait */
-@media screen and (min-width: 900px) and (min-height: 900px) {
-  .tela-total {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .container, .banner {
-    width: 100%;
-    height: 50vh;
-    flex: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .banner img {
-    width: 100%;
-    max-width: 600px;
-    height: auto;
-  }
-
-  .login-form {
-    width: 60%;
-    max-width: 500px;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 5px;
-    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
-    text-align: center;
-  }
+.error-message.visible {
+  display: block;
+  margin-bottom: 10px;
 }
 
-/* Dispositivos Maiores e Tablets - Landscape */
-@media screen and (min-width: 1200px) {
-  .tela-total {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .container, .banner {
-    width: 50%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .banner img {
-    width: 100%;
-    max-width: 600px;
-    height: auto;
-  }
-
-  .login-form {
-    width: 50%;
-    max-width: 500px;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 5px;
-    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
-    text-align: center;
-  }
+.loading-spinner {
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  color: #007bff; /* Azul, ou a cor que preferir */
+  margin-top: 20px;
+  margin-bottom: 10px;
+  /* Se preferir um spinner animado, pode usar uma animação CSS ou uma imagem gif */
 }
-
 
 

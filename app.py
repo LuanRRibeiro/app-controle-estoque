@@ -6,7 +6,15 @@ from werkzeug.utils import secure_filename
 import psycopg2
 from google.cloud import storage
 import datetime
-
+from flask import Flask, request, redirect, url_for, flash
+from flask_mail import Mail, Message
+from flask import Flask, request, jsonify
+import smtplib
+from email.message import EmailMessage
+import uuid
+from datetime import datetime, timedelta, timezone
+from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash
 
 app = Flask(__name__)
 
@@ -35,44 +43,44 @@ def esta_autenticado():
 # Função para logar no app verificando login e senha
 @app.route('/', methods=['GET', 'POST'])
 def login():
-    error = None
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
+        email = request.form.get('email')
+        password = request.form.get('password')
+
+        if not email or not password:
+            return jsonify({'error': 'Email e senha são obrigatórios'})
+
         banco = conexao_bd()
         cursor = banco.cursor()
 
-        sql = 'SELECT id, nome, login, senha FROM vendedores WHERE login = %s AND senha = %s'
-
-        cursor.execute(sql, (username, password,))
+        # Busca o hash da senha armazenado no banco de dados
+        sql = 'SELECT id_usuario, senha FROM vendedores WHERE email = %s'
+        cursor.execute(sql, (email,))
         usuario = cursor.fetchone()
 
-
-        # Se localizar Usuario e Senha Abre o Painel
-        if usuario is not None:
-            # Contabilizando acesso de cada usuario  
-            id_usuario = usuario[0]
-            cursor.execute('UPDATE vendedores SET acesso = acesso + 1 WHERE id = %s', (id_usuario,))
-            banco.commit()
-
-            cursor.close()
-            banco.close()
-
-
-            # Definir a sessão do usuário se as credenciais estiverem corretas
-            session['username'] = username
-            session['password'] = password
-
-
-            
-
-            return jsonify({'error': None})
-        else:
-            error = 'Nome de usuário ou senha inválido(a)'
-        
         cursor.close()
         banco.close()
+
+        if usuario:
+            id_usuario, senha_hash = usuario
+
+            # Verifica se a senha fornecida corresponde ao hash armazenado
+            if check_password_hash(senha_hash, password):
+                # Contabilizando acesso de cada usuário  
+                banco = conexao_bd()
+                cursor = banco.cursor()
+                cursor.execute('UPDATE vendedores SET acesso = acesso + 1 WHERE id_usuario = %s', (id_usuario,))
+                banco.commit()
+                cursor.close()
+                banco.close()
+                
+                # Define a sessão do usuário se as credenciais estiverem corretas
+                session['username'] = email
+                return jsonify({'error': None})
+            else:
+                error = 'Nome de usuário ou senha inválido(a)'
+        else:
+            error = 'Nome de usuário ou senha inválido(a)'
 
         return jsonify({'error': error})
 
@@ -97,19 +105,18 @@ def painel():
     
     carrinho_compras.clear()
 
-    login = session.get('username')
-    senha = session.get('password')
-
+    email = session.get('username')
+    
     # Verifica os itens no carrinho do usuário
     sql_verificar = '''
         SELECT produto_id, quantidade 
         FROM itens_no_carrinho 
-        WHERE usuario_id = (SELECT id FROM vendedores WHERE login = %s AND senha = %s)
+        WHERE usuario_id = (SELECT id_usuario FROM vendedores WHERE email = %s)
     '''
 
     banco = conexao_bd()
     cursor = banco.cursor()
-    cursor.execute(sql_verificar, (login, senha))
+    cursor.execute(sql_verificar, (email,))
     resultado = cursor.fetchall()
     
     for item in resultado:
@@ -191,51 +198,76 @@ def buscar_produtos():
         produtos_json.append(produto_dict)
     return jsonify(produtos_json)
 
-# Função que acessa pagina do carrinho
+# Função que acessa a página do carrinho
 @app.route('/carrinho')
 def carrinho():
     if not esta_autenticado():
         return redirect(url_for('login'))
-    # Acessando pagina do carrinho de compras
 
+    # Acessando página do carrinho de compras
     carrinho_compras.clear()
 
-    login = session.get('username')
-    senha = session.get('password')
-
-    # Verifica os itens no carrinho do usuário
-    sql_verificar = '''
-        SELECT produto_id, quantidade 
-        FROM itens_no_carrinho 
-        WHERE usuario_id = (SELECT id FROM vendedores WHERE login = %s AND senha = %s)
-    '''
+    email = session.get('username')
 
     banco = conexao_bd()
     cursor = banco.cursor()
-    cursor.execute(sql_verificar, (login, senha))
-    resultado = cursor.fetchall()
     
-    for item in resultado:
-        produto_id = item[0]
-        quantidade_selecionada = item[1]
+    # Verificar o usuário e obter o id_usuario
+    sql_verificar_usuario = '''
+        SELECT id_usuario 
+        FROM vendedores 
+        WHERE email = %s
+    '''
+    cursor.execute(sql_verificar_usuario, (email,))
+    resultado_usuario = cursor.fetchone()
 
-        sql_verificar_produto = '''
-        SELECT nome, descricao, quantidade, preco_venda, caminho_imagem
-        FROM produtos 
-        WHERE id = %s'''
+    if resultado_usuario:
+        id_usuario = resultado_usuario[0]
 
-        cursor.execute(sql_verificar_produto, (produto_id,))
-        resultado_produto = cursor.fetchone()
-        nome = resultado_produto[0]
-        descricao = resultado_produto[1]
-        estoque = resultado_produto[2]
-        preco = float(resultado_produto[3])
-        imagem = resultado_produto[4]
-
-        valor_total = float(preco * quantidade_selecionada)
-
-        carrinho_compras.append({'id': produto_id, 'nome': nome, 'descricao': descricao, 'estoque': estoque, 'quantidade': quantidade_selecionada, 'preco': preco, 'valorTotal': valor_total, 'imagem':imagem})
+        # Verifica os itens no carrinho do usuário
+        sql_verificar_carrinho = '''
+            SELECT produto_id, quantidade 
+            FROM itens_no_carrinho 
+            WHERE usuario_id = %s
+        '''
+        cursor.execute(sql_verificar_carrinho, (id_usuario,))
+        resultado_carrinho = cursor.fetchall()
         
+        for item in resultado_carrinho:
+            produto_id = item[0]
+            quantidade_selecionada = item[1]
+
+            sql_verificar_produto = '''
+                SELECT nome, descricao, quantidade, preco_venda, caminho_imagem
+                FROM produtos 
+                WHERE id = %s
+            '''
+            cursor.execute(sql_verificar_produto, (produto_id,))
+            resultado_produto = cursor.fetchone()
+            nome = resultado_produto[0]
+            descricao = resultado_produto[1]
+            estoque = resultado_produto[2]
+            preco = float(resultado_produto[3])
+            imagem = resultado_produto[4]
+
+            valor_total = float(preco * quantidade_selecionada)
+
+            carrinho_compras.append({
+                'id': produto_id,
+                'nome': nome,
+                'descricao': descricao,
+                'estoque': estoque,
+                'quantidade': quantidade_selecionada,
+                'preco': preco,
+                'valorTotal': valor_total,
+                'imagem': imagem
+            })
+    else:
+        # Se o usuário não for encontrado
+        return redirect(url_for('login'))
+    
+    cursor.close()
+    banco.close()
 
     return render_template('carrinho.html', carrinho_compras=carrinho_compras)
 
@@ -245,58 +277,69 @@ def adicionar_carrinho():
     if not esta_autenticado():
         return redirect(url_for('login'))
     
-    login = session.get('username')
-    senha = session.get('password')
-
+    email = session.get('username')
+    
     produto = request.json
     produto_id = produto['id']
     quantidade = produto['quantidade']
     preco_unitario = produto['preco']
 
-    # Verifica se o item já está no carrinho do usuário
-    sql_verificar = '''
-        SELECT COUNT(*) 
-        FROM itens_no_carrinho 
-        WHERE usuario_id = (SELECT id FROM vendedores WHERE login = %s AND senha = %s)
-        AND produto_id = %s
-    '''
-
     banco = conexao_bd()
     cursor = banco.cursor()
-    cursor.execute(sql_verificar, (login, senha, produto_id))
-    resultado = cursor.fetchone()
-    quantidade_produto_no_carrinho = resultado[0]
-
-    if quantidade_produto_no_carrinho > 0:
-        # Se o item já estiver no carrinho, atualiza a quantidade e o preço unitário
-        sql_update = '''
-            UPDATE itens_no_carrinho 
-            SET quantidade = quantidade + %s
-            WHERE usuario_id = (SELECT id FROM vendedores WHERE login = %s AND senha = %s)
-            AND produto_id = %s
-        '''
-        cursor.execute(sql_update, (quantidade, login, senha, produto_id))
-    else:
-        # Se o item não estiver no carrinho, insere um novo registro
-        sql_insert = '''
-            INSERT INTO itens_no_carrinho (usuario_id, produto_id, quantidade, preco_unitario)
-            SELECT id, %s, %s, %s 
-            FROM vendedores 
-            WHERE login = %s AND senha = %s
-        '''
-        cursor.execute(sql_insert, (produto_id, quantidade, preco_unitario, login, senha))
-
-    banco.commit()
-    cursor.close()
-    banco.close()
-
-
-    # Reduzir a quantidade do produto no banco de dados
-    diminuir_quantidade_produto_no_bd(produto['id'], produto['quantidade'], 'adicionar')
     
-    quantidade_itens_carrinho = calcular_quantidade_total_carrinho(carrinho_compras)
+    # Verificar o usuário e obter o id_usuario
+    sql_verificar = '''
+        SELECT id_usuario 
+        FROM vendedores 
+        WHERE email = %s
+    '''
+    cursor.execute(sql_verificar, (email,))
+    resultado = cursor.fetchone()
 
-    return jsonify({'message': 'Produto adicionado ao carrinho com sucesso', 'quantidadeItens': quantidade_itens_carrinho})
+    if resultado:
+        id_usuario = resultado[0]
+
+        # Verifica se o item já está no carrinho do usuário
+        sql_verificar_carrinho = '''
+            SELECT COUNT(*) 
+            FROM itens_no_carrinho 
+            WHERE usuario_id = %s AND produto_id = %s
+        '''
+        cursor.execute(sql_verificar_carrinho, (id_usuario, produto_id))
+        resultado_carrinho = cursor.fetchone()
+        quantidade_produto_no_carrinho = resultado_carrinho[0]
+
+        if quantidade_produto_no_carrinho > 0:
+            # Se o item já estiver no carrinho, atualiza a quantidade
+            sql_update = '''
+                UPDATE itens_no_carrinho 
+                SET quantidade = quantidade + %s
+                WHERE usuario_id = %s AND produto_id = %s
+            '''
+            cursor.execute(sql_update, (quantidade, id_usuario, produto_id))
+        else:
+            # Se o item não estiver no carrinho, insere um novo registro
+            sql_insert = '''
+                INSERT INTO itens_no_carrinho (usuario_id, produto_id, quantidade, preco_unitario)
+                VALUES (%s, %s, %s, %s)
+            '''
+            cursor.execute(sql_insert, (id_usuario, produto_id, quantidade, preco_unitario))
+
+        banco.commit()
+        cursor.close()
+        banco.close()
+
+        # Reduzir a quantidade do produto no banco de dados
+        diminuir_quantidade_produto_no_bd(produto['id'], produto['quantidade'], 'adicionar')
+        
+        quantidade_itens_carrinho = calcular_quantidade_total_carrinho(carrinho_compras)
+
+        return jsonify({'message': 'Produto adicionado ao carrinho com sucesso', 'quantidadeItens': quantidade_itens_carrinho})
+    else:
+        cursor.close()
+        banco.close()
+        return jsonify({'error': 'Usuário não encontrado'}), 404
+
 
 # Função que remove item do carrinho
 @app.route('/remover_do_carrinho', methods=['POST'])
@@ -663,7 +706,110 @@ def finalizar_pagamento():
     mensagem = "Pagamento finalizado com sucesso!"
     return render_template('pedido_finalizado.html', mensagem=mensagem)
 
-#@app.route('/contagem_acesso', methods=['GET', 'POST'])
+@app.route('/pagina_recuperar_senha', methods=['GET','POST'])
+def pagina_recuperar_senha():
+    return render_template('pagina_recuperar_senha.html')
+
+@app.route('/enviar_email_recuperar_senha', methods=['POST'])
+def enviar_email_recuperar_senha():
+    data = request.json
+    email = data.get('email')
+
+    banco = conexao_bd()
+    cursor = banco.cursor()
+
+    sql = 'SELECT nome FROM vendedores WHERE email = %s'
+    cursor.execute(sql, (email,))
+    usuario = cursor.fetchone()
+
+    if usuario is not None:
+        # Gerar um link de redefinição de senha (exemplo básico)
+        token_redefinicao = str(uuid.uuid4())
+        expiracao = datetime.now() + timedelta(minutes=15)
+        link_redefinicao = f"http://127.0.0.1:5000/pagina_nova_senha"
+
+        sql = 'UPDATE vendedores SET id_token = %s, token_expiracao = %s WHERE email = %s'
+        cursor.execute(sql, (token_redefinicao, expiracao, email,))
+        banco.commit()
+        banco.close()
+
+        # Enviar o e-mail
+        enviar_email_recuperacao(email, link_redefinicao, token_redefinicao, expiracao)
+
+        return jsonify(success=True, message='Email de recuperação enviado!'), 200
+    else:
+        return jsonify(success=False, message='Email não cadastrado!'), 400
+    
+def enviar_email_recuperacao(email_destinatario, link_redefinicao, token_redefinicao, expiracao):
+    data_hora_formatada = expiracao.strftime('%d/%m/%Y %H:%M')
+
+    msg = EmailMessage()
+    msg.set_content(f'''Clique no link abaixo para redefinir sua senha:
+                    
+http://127.0.0.1:5000/pagina_nova_senha?token={token_redefinicao}
+    
+Validade: 15 Minutos
+Expira em: {data_hora_formatada}
+''')
+    msg['Subject'] = 'Redefinição de Senha'
+    msg['From'] = 'luanrodriguesribeiro@gmail.com'  # Substitua pelo seu e-mail
+    msg['To'] = email_destinatario
+
+    servidor_smtp = 'smtp.gmail.com'
+    porta_smtp = 587
+    usuario_smtp = 'luanrodriguesribeiro@gmail.com'  # Substitua pelo seu e-mail
+    senha_smtp = 'adfg lpxt nauw cbqv'  # Substitua pela sua senha
+
+    with smtplib.SMTP(servidor_smtp, porta_smtp) as servidor:
+        servidor.starttls()
+        servidor.login(usuario_smtp, senha_smtp)
+        servidor.send_message(msg)
+    
+@app.route('/pagina_nova_senha', methods=['GET'])
+def pagina_nova_senha():
+    return render_template('pagina_nova_senha.html')
+
+@app.route('/nova_senha', methods=['POST', 'GET'])
+def nova_senha():
+    data = request.json
+    nova_senha = data.get('novaSenha')
+    token = data.get('token')
+   
+
+    banco = conexao_bd()
+    cursor = banco.cursor()
+
+    # Verifica o token e se ele não expirou
+    sql = 'SELECT id_usuario, token_expiracao FROM vendedores WHERE id_token = %s'
+    cursor.execute(sql, (token,))
+    resultado = cursor.fetchone()
+
+    if not resultado:
+        return jsonify(success=False, message='Token inválido ou expirado'), 400
+
+    id_usuario, expiracao_token = resultado
+
+    # Obtém a hora atual no fuso horário local
+    hora_local_atual = datetime.now()
+    # Formata a data e hora para obter apenas 'YYYY-MM-DD HH:MM'
+    hora_formatada = hora_local_atual.strftime('%Y-%m-%d %H:%M')
+    expiracao_token_formatada = expiracao_token.strftime('%Y-%m-%d %H:%M')
+
+    # Verifica se expiracao_token é timezone-aware, se não for, torná-lo
+    if expiracao_token.tzinfo is None:
+        expiracao_token = expiracao_token.replace(tzinfo=timezone.utc)
+
+    if hora_formatada > expiracao_token_formatada:
+        return jsonify(success=False, message='Token expirado'), 400
+
+    # Atualiza a senha no banco de dados
+    nova_senha_hash = generate_password_hash(nova_senha)
+    sql = 'UPDATE vendedores SET senha = %s, id_token = NULL, token_expiracao = NULL WHERE id_usuario = %s'
+    cursor.execute(sql, (nova_senha_hash, id_usuario))
+    banco.commit()
+
+    return jsonify(success=True, message='Senha alterada com sucesso'), 200
+
 
 if __name__ == '__main__':
     #app.run()

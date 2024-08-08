@@ -1,80 +1,46 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Controle de Estoque</title>
-  <link rel="icon" href="/static/imagem/icone.ico" type="image/x-icon">
-  <link rel="stylesheet" href="static/css/login.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="/static/css/login.css">
+    <link rel="icon" href="/static/imagem/icone.ico" type="image/x-icon">
 </head>
 <body>
-  <div class='tela-total'>
-    <div class="banner">
-      <img src="/static/imagem/logo.png" alt="Banner">
-    </div>
-
-    <div class="container">
-      <form class="login-form" id="login-form" action="/" method="post">
-        <h2>Login</h2>
-
-        <div class="input-group">
-          <label for="username">Usuário</label>
-          <input type="text" id="username" name="username" required>
+    <div class="split-container">
+        <div class="image-container">
+            <img src="/static/imagem/logo.png" alt="Imagem Descritiva">
         </div>
+        <div class="login-container">
+            <div class="login-box">
+                <h2>Faça o seu login</h2>
+                <form id="login-form">
+                    <div class="input-group">
+                        <label for="email">Seu e-mail*</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="password">Sua senha*</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
 
-        <div class="input-group">
-          <label for="password">Senha</label>
-          <input type="password" id="password" name="password" required>
+                    
+                    <div id="error-message" class="error-message"></div>
+                    <div id="loading-spinner" class="loading-spinner" style="display: none;">Carregando...</div>
+
+
+
+                    <div class="input-group">
+                        <input type="checkbox" id="remember" name="remember">
+                        <label for="remember">Lembrar-me</label>
+                    </div>
+                    <button type="submit">ENTRAR</button>
+                    <p>Esqueceu sua senha? <a href="/pagina_recuperar_senha">Clique aqui!</a></p>
+                </form>
+            </div>
         </div>
-
-        <div id="error-message" class="error-message"></div>
-        
-        <button type="submit">Entrar</button>
-      </form>
     </div>
-  </div>
-
-  <script>
-    document.getElementById('login-form').addEventListener('submit', function(event) {
-      event.preventDefault(); // Impede o envio do formulário padrão
-      
-      // Coleta os dados do formulário
-      var formData = new FormData(this);
-
-      // Envia os dados para o servidor via AJAX
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', '/');
-      xhr.onload = function() {
-        if (xhr.status === 200) {
-          // Se a solicitação foi bem-sucedida, verifica a resposta do servidor
-          var response = JSON.parse(xhr.responseText);
-          if (response.error) {
-            console.log('Erro detectado:', response.error); // Adicione esta linha para depurar
-            // Se houver um erro, exibe a mensagem de erro
-            document.getElementById('error-message').textContent = response.error;
-            // Adicione a classe 'visible' para tornar o elemento visível
-            document.getElementById('error-message').classList.add('visible');
-            // Limpa apenas o campo de senha
-            document.getElementById('password').value = '';
-          } else {
-            // Se não houver erro, redireciona para o painel
-            window.location.href = '/painel';
-          }
-        }
-      };
-      xhr.send(formData);
-    });
-
-    // Adiciona um evento de escuta nos campos de entrada (username e password)
-    document.getElementById('username').addEventListener('input', function() {
-      // Remove a classe 'visible' do elemento error-message
-      document.getElementById('error-message').classList.remove('visible');
-    });
-
-    document.getElementById('password').addEventListener('input', function() {
-      // Remove a classe 'visible' do elemento error-message
-      document.getElementById('error-message').classList.remove('visible');
-    });
-  </script>
+    <script src="/static/js/login.js"></script>
 </body>
 </html>
