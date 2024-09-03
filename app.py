@@ -1,10 +1,8 @@
 '''Aplicativo WEB - Projeto Integrado I'''
 
 from flask import Flask, request, redirect, render_template, session, url_for, jsonify
-import os
 from werkzeug.utils import secure_filename
 import psycopg2
-from google.cloud import storage
 import datetime
 from flask import Flask, request, redirect, url_for, flash
 from flask_mail import Mail, Message
@@ -15,6 +13,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
+from google.cloud import storage
+from google.oauth2 import service_account
+import os
+import re
+from urllib.parse import urlsplit
+
 
 app = Flask(__name__)
 
@@ -340,7 +344,6 @@ def adicionar_carrinho():
         banco.close()
         return jsonify({'error': 'Usuário não encontrado'}), 404
 
-
 # Função que remove item do carrinho
 @app.route('/remover_do_carrinho', methods=['POST'])
 def remover_produto_do_carrinho():
@@ -473,7 +476,7 @@ def atualizar_estoque():
 def cadastro_de_produtos():
     if not esta_autenticado():
         return redirect(url_for('login'))
-    return render_template('cadastro_produtos.html')
+    return render_template('produtos/cadastro_produtos.html')
 
 # Rota para cadastrar produto.
 @app.route('/adicionar_produto', methods=['POST'])
@@ -500,9 +503,7 @@ def pagina_adicionar_produto():
     else:
         if enviado == 'sim':
             # Obtém pasta raiz do aplicativo
-            pasta_raiz = os.path.dirname(os.path.realpath(__file__))
-            
-            pasta_temp_heroku = '/tmp/temp'
+            pasta_temp = '/tmp/temp'
 
             # Obtém a extensão do arquivo
             extensao = imagem.filename.split('.')[-1]
@@ -511,30 +512,19 @@ def pagina_adicionar_produto():
             arquivo = secure_filename(nome + '.' + extensao)
            
             # Verifica se o diretório temporário existe e, se não, cria-o
-            if not os.path.exists(pasta_temp_heroku):
-                os.makedirs(pasta_temp_heroku)
-            
-            
-            caminho_completo = os.path.join(pasta_temp_heroku, arquivo)
-            imagem.save(os.path.join(pasta_temp_heroku, arquivo))
-
-            # Nome do arquivo de chave de serviço
-            chave = 'projetoteste-398517-9de2939260b4.json'
-
-            # Caminho completo para o arquivo de chave de serviço
-            caminho_arquivo_json = pasta_raiz + '/' + chave
-
-            # Define as credenciais de autenticação para o Google Cloud Storage
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = caminho_arquivo_json
+            if not os.path.exists(pasta_temp):
+                os.makedirs(pasta_temp)
+                        
+            caminho_completo = os.path.join(pasta_temp, arquivo)
+            imagem.save(caminho_completo)
 
             nome_bucket = "bd_imagens"
-            caminho_imagem_local = caminho_completo
             nome_blob_destino = arquivo
             
-            fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino)
+            fazer_upload_imagem_gcs(nome_bucket, caminho_completo, nome_blob_destino)
             url = obter_url_imagem(nome_bucket, nome_blob_destino)
-
-            # Exclui o diretório temporário e seu conteúdo
+           
+            # Exclui o arquivo de imagem temporário
             os.remove(caminho_completo)
             
             # Chame a função desejada com os dados recebidos
@@ -546,11 +536,11 @@ def pagina_adicionar_produto():
             else:
                 return 'Ocorreu um erro ao cadastrar o produto. Por favor, tente novamente.', 500
         else:
-            url = ''
+            url = 'https://storage.cloud.google.com/bd_imagens/sem_imagem.png'
             # Chame a função desejada com os dados recebidos
             resultado = adicionar_produto(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url)
             return 'Produto cadastrado com sucesso!', 200
-
+# Fazer Upload da imagem do produto
 def fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino):
     # Inicializa o cliente do Google Cloud Storage
     cliente_storage = storage.Client()
@@ -562,6 +552,7 @@ def fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino
     blob = bucket.blob(nome_blob_destino)
     blob.upload_from_filename(caminho_imagem_local)
 
+# Obter a Url da imagem
 def obter_url_imagem(nome_bucket, nome_blob):
     # Inicializa o cliente do Google Cloud Storage
     cliente_storage = storage.Client()
@@ -573,7 +564,7 @@ def obter_url_imagem(nome_bucket, nome_blob):
     blob = bucket.blob(nome_blob)
 
     # Gera a URL assinada com uma expiração longa
-    url = blob.generate_signed_url(expiration=datetime.timedelta(days=3652))
+    url = blob.generate_signed_url(expiration=timedelta(days=3652))
 
     return url
 
@@ -593,7 +584,6 @@ def produto_existe(nome_produto):
 
 # função que cadastra o produto.
 def adicionar_produto(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, caminho_imagem):
-    
     if produto_existe(nome):
         return 'Existe'
     else:
@@ -619,79 +609,142 @@ def adicionar_produto(nome, quantidade, descricao, preco_compra, preco_venda, lu
 def formatar_valor(valor):
     return f'{valor:.2f}'
 
-# Função para acessar pagina de estoque
-@app.route('/estoque', methods=['GET'])
-def pagina_estoque():
-    if not esta_autenticado():
-        return redirect(url_for('login'))
-    
-    texto = 'Buscar Produtos - Em Estoque!'
+@app.route('/listar_produtos')
+def listar_produtos():
+    search = request.args.get('search', '')
+    em_estoque = request.args.get('em_estoque', '0') == '1'
+    fora_de_estoque = request.args.get('fora_de_estoque', '0') == '1'
 
-    produtos = []
+    # Se nenhuma checkbox estiver marcada, não exibir nada
+    if not em_estoque and not fora_de_estoque:
+        produtos = []  # Lista vazia, não retorna nenhum produto
+    else:
+        produtos = []
 
-    banco = conexao_bd()
-    cursor = banco.cursor()
-    
-    cursor.execute("SELECT * FROM produtos WHERE quantidade >= 1")
-    produtos_bd = cursor.fetchall()
+        banco = conexao_bd()
+        cursor = banco.cursor()
 
-    if produtos_bd != []:
+        sql = "SELECT * FROM produtos WHERE 1=1"
+        params = []
+
+        if search:
+            try:
+                id_busca = int(search)
+                sql += " AND id = %s"
+                params.append(id_busca)
+            except ValueError:
+                sql += " AND nome ILIKE %s"
+                params.append(f'%{search}%')
+
+        if em_estoque and fora_de_estoque:
+            pass
+        elif em_estoque:
+            sql += " AND quantidade > 0"
+        elif fora_de_estoque:
+            sql += " AND quantidade = 0"
+
+        cursor.execute(sql, params)
+        produtos_bd = cursor.fetchall()
+
         for produto in produtos_bd:
-            id = produto[0]
-            nome = produto[1]
-            quantidade = int(produto[2])
-            descricao = produto[3]
-            preco_compra = produto[4]
-            preco_venda = float(produto[5])
-            lucro_reais = produto[6]
-            lucro_porcentagem = produto[7]
-            imagem = produto[8]
-            produtos.append({'nome': nome, 'descricao': descricao, 'quantidade': quantidade, 'preco': preco_venda})
-    
-        # Formatando os valores de preço antes de passá-los para o template
-        for produto in produtos:
-            produto['preco_formatado'] = formatar_valor(produto['preco'])
-    return render_template('pagina_estoque.html', produtos=produtos, texto_h1=texto)
+            produtos.append({
+                'id': produto[0],
+                'nome': produto[1],
+                'quantidade': produto[2],
+                'descricao': produto[3],
+                'preco_compra': produto[4],
+                'preco_venda': produto[5],
+                'lucro_reais': produto[6],
+                'lucro_porcentagem': produto[7],
+                'imagem_url': produto[8]
+            })
 
-# Função para acessar pagina de produtos que não tem no estoque
-@app.route('/fora_estoque', methods=['GET'])
-def pagina_fora_estoque():
-    if not esta_autenticado():
-        return redirect(url_for('login'))
-    
-    texto = 'Buscar Produtos - Fora de Estoque!'
+        banco.close()
 
-    produtos = []
+    # Verifica se a requisição foi feita via AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render_template('product_list.html', produtos=produtos)
+    else:
+        return render_template(
+            'listar_produtos.html',
+            produtos=produtos,
+            search_query=search,
+            em_estoque=em_estoque,
+            fora_de_estoque=fora_de_estoque
+        )
 
+@app.route('/excluir-produto/<int:id>', methods=['POST'])
+def excluir_produto(id):
     banco = conexao_bd()
     cursor = banco.cursor()
-    
-    cursor.execute("SELECT * FROM produtos WHERE quantidade = 0")
-    produtos_banco_dados_zerados = cursor.fetchall()
-        
-    if produtos_banco_dados_zerados != []:
-        for produto in produtos_banco_dados_zerados:
-            id = produto[0]
-            nome = produto[1]
-            quantidade = int(produto[2])
-            descricao = produto[3]
-            preco_compra = produto[4]
-            preco_venda = float(produto[5])
-            lucro_reais = produto[6]
-            lucro_porcentagem = produto[7]
-            imagem = produto[8]
-            produtos.append({'nome': nome, 'descricao': descricao, 'quantidade': quantidade, 'preco': preco_venda})
-    
-        # Formatando os valores de preço antes de passá-los para o template
-        for produto in produtos:
-            produto['preco_formatado'] = formatar_valor(produto['preco'])
-    return render_template('pagina_estoque.html', produtos=produtos, texto_h1=texto)
 
+    # Primeiro, obtenha a URL da imagem do produto antes de excluí-lo
+    cursor.execute("SELECT caminho_imagem FROM produtos WHERE id = %s", (id,))
+    produto = cursor.fetchone()
+
+    if produto:
+        imagem_url = produto[0]
+
+        # Exclua o produto do banco de dados
+        cursor.execute("DELETE FROM produtos WHERE id = %s", (id,))
+        banco.commit()
+
+        # Feche a conexão com o banco de dados
+        cursor.close()
+        banco.close()
+
+        # Se a URL da imagem existir, exclua a imagem do GCS
+        if imagem_url:
+            excluir_imagem_gcs(imagem_url)
+
+    return redirect(url_for('listar_produtos'))
+
+def excluir_imagem_gcs(imagem_url):
+    # Obtém o diretório raiz do script
+    pasta_raiz = os.path.dirname(os.path.realpath(__file__))
+    
+    # Caminho para o arquivo de chave JSON
+    caminho_chave = os.path.join(pasta_raiz, 'projetoteste-398517-9de2939260b4.json')
+
+    # Carregar as credenciais a partir do arquivo
+    credentials = service_account.Credentials.from_service_account_file(caminho_chave)
+    
+    # Configurar o cliente de storage
+    storage_client = storage.Client(credentials=credentials)
+
+    # Nome do bucket
+    nome_bucket = 'bd_imagens'
+
+    # Dividir a URL em partes
+    parsed_url = urlsplit(imagem_url)
+    path = parsed_url.path
+    
+    # Extrair o nome do arquivo do caminho, removendo o prefixo do bucket
+    nome_blob = path.lstrip('/').replace(f'{nome_bucket}/', '', 1)
+    
+    if nome_blob:
+        # Referenciar o bucket e o blob
+        bucket = storage_client.bucket(nome_bucket)
+        blob = bucket.blob(nome_blob)
+        
+        # Verificar a imagem cadastrada do produto não e sem_imagem.png utilizada para produtos sem fotos ao cadastrar
+        if nome_blob != 'sem_imagem.png':
+            try:
+                # Excluir o blob
+                blob.delete()
+                print(f"Imagem '{nome_blob}' excluída com sucesso do bucket '{nome_bucket}'.")
+            except Exception as e:
+                print(f"Erro ao excluir a imagem: {e}")
+    else:
+        print("URL de imagem inválida.")
+
+# Função para acessar o metodo de pagamento
 @app.route('/pagina_pagamento', methods=['GET'])
 def pagina_pagamento():
     total = request.args.get('total', 0.00)
     return render_template('pagamento.html', total=float(total))
 
+# Função para finalizar o pagamento
 @app.route('/finalizar_pagamento', methods=['GET', 'POST'])
 def finalizar_pagamento():
     banco = conexao_bd()
@@ -706,10 +759,12 @@ def finalizar_pagamento():
     mensagem = "Pagamento finalizado com sucesso!"
     return render_template('pedido_finalizado.html', mensagem=mensagem)
 
+# Função para recurar senha do usuario
 @app.route('/pagina_recuperar_senha', methods=['GET','POST'])
 def pagina_recuperar_senha():
     return render_template('pagina_recuperar_senha.html')
 
+#Função Enviar email de recuperar senha
 @app.route('/enviar_email_recuperar_senha', methods=['POST'])
 def enviar_email_recuperar_senha():
     data = request.json
@@ -739,7 +794,8 @@ def enviar_email_recuperar_senha():
         return jsonify(success=True, message='Email de recuperação enviado!'), 200
     else:
         return jsonify(success=False, message='Email não cadastrado!'), 400
-    
+
+#Função Enviar email de recuperar senha
 def enviar_email_recuperacao(email_destinatario, link_redefinicao, token_redefinicao, expiracao):
     data_hora_formatada = expiracao.strftime('%d/%m/%Y %H:%M')
 
@@ -764,11 +820,13 @@ Expira em: {data_hora_formatada}
         servidor.starttls()
         servidor.login(usuario_smtp, senha_smtp)
         servidor.send_message(msg)
-    
+
+# Função que acessa pagina para cadastra nova senha
 @app.route('/pagina_nova_senha', methods=['GET'])
 def pagina_nova_senha():
     return render_template('pagina_nova_senha.html')
 
+# Função que gera salva na senha no banco de dados
 @app.route('/nova_senha', methods=['POST', 'GET'])
 def nova_senha():
     data = request.json
