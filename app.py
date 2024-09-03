@@ -502,10 +502,7 @@ def pagina_adicionar_produto():
         return 'Produto já cadastrado anteriormente!', 409
     else:
         if enviado == 'sim':
-            
             # Obtém pasta raiz do aplicativo
-            pasta_raiz = os.path.dirname(os.path.realpath(__file__))
-            
             pasta_temp = '/tmp/temp'
 
             # Obtém a extensão do arquivo
@@ -519,25 +516,15 @@ def pagina_adicionar_produto():
                 os.makedirs(pasta_temp)
                         
             caminho_completo = os.path.join(pasta_temp, arquivo)
-            imagem.save(os.path.join(pasta_temp, arquivo))
-
-            # Nome do arquivo de chave de serviço
-            chave = 'projetoteste-398517-9de2939260b4.json'
-
-            # Caminho completo para o arquivo de chave de serviço
-            caminho_arquivo_json = pasta_raiz + '/' + chave
-
-            # Define as credenciais de autenticação para o Google Cloud Storage
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = caminho_arquivo_json
+            imagem.save(caminho_completo)
 
             nome_bucket = "bd_imagens"
-            caminho_imagem_local = caminho_completo
             nome_blob_destino = arquivo
             
-            fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino)
+            fazer_upload_imagem_gcs(nome_bucket, caminho_completo, nome_blob_destino)
             url = obter_url_imagem(nome_bucket, nome_blob_destino)
            
-            # Exclui o diretório temporário e seu conteúdo
+            # Exclui o arquivo de imagem temporário
             os.remove(caminho_completo)
             
             # Chame a função desejada com os dados recebidos
@@ -553,7 +540,6 @@ def pagina_adicionar_produto():
             # Chame a função desejada com os dados recebidos
             resultado = adicionar_produto(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url)
             return 'Produto cadastrado com sucesso!', 200
-
 # Fazer Upload da imagem do produto
 def fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino):
     # Inicializa o cliente do Google Cloud Storage

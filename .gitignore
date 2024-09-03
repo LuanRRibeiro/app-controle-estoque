@@ -1,0 +1,44 @@
+# Ambiente Virtual
+venv/
+env/
+
+# Arquivos e pastas de build
+*.egg-info/
+dist/
+build/
+
+# Arquivos de configuração de IDE
+.idea/
+*.vscode/
+
+# Cache e arquivos temporários
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.tmp
+*.swp
+*.swo
+
+# Arquivos de log
+*.log
+
+# Arquivos de teste e cobertura
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# Arquivos sensíveis
+*.env
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Ignore o arquivo de chave JSON
+projetoteste-398517-9de2939260b4.json
+
+# Pastas específicas para Google Cloud (se aplicável)
+.gcloud/
+.gcloud/*
