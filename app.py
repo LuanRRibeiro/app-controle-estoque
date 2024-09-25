@@ -18,6 +18,8 @@ from google.oauth2 import service_account
 import os
 import re
 from urllib.parse import urlsplit
+from psycopg2.extras import RealDictCursor
+
 
 
 app = Flask(__name__)
@@ -622,6 +624,118 @@ def adicionar_produto(nome, quantidade, descricao, preco_compra, preco_venda, lu
 # Função para formatar o valor do preço
 def formatar_valor(valor):
     return f'{valor:.2f}'
+
+# Rota para editar produto.
+# Ao clicar no Botao Editar chama esta função
+@app.route('/editar-produto/<int:id>', methods=['GET', 'POST'])
+def editar_produto(id):
+    banco = conexao_bd()
+    cursor = banco.cursor(cursor_factory=RealDictCursor)
+    
+    cursor.execute('SELECT * FROM produtos WHERE id = %s', (id,))
+    produto = cursor.fetchone()
+    cursor.close()
+    banco.close()
+
+    if produto is None:
+        return "Produto não encontrado!", 404
+
+    # Exibi a pagina para editar produto
+    return render_template('editar_produto.html', produto=produto)
+
+# Rota salvar no BD produto editado.
+@app.route('/salvar_produto_editado/<int:id_produto>', methods=['POST'])
+def salvar_produto_editado(id_produto):
+
+    # Recupere os dados do formulário enviado pelo JavaScript
+    nome = request.form['nome'].upper()
+    quantidade = int(request.form['quantidade'])
+    descricao = request.form['descricao'].upper()
+    preco_compra = request.form['preco_compra']
+    preco_venda = request.form['preco_venda']
+    lucro_reais = request.form['lucro_reais']
+    lucro_porcentagem = request.form['lucro_porcentagem']
+    lucro_porcentagem = float(lucro_porcentagem.rstrip('%'))
+
+
+    # Verifique se um arquivo de imagem foi enviado
+    if 'imagem' in request.files:
+        imagem = request.files['imagem']
+        enviado = 'sim'
+    else:
+        enviado = 'nao'
+    
+    if enviado == 'sim':
+        # Obtém pasta raiz do aplicativo
+        pasta_raiz = os.path.dirname(os.path.realpath(__file__))
+        
+        pasta_temp = '/tmp/temp'
+
+        # Obtém a extensão do arquivo
+        extensao = imagem.filename.split('.')[-1]
+
+        # Obtém o nome do arquivo com extensão
+        arquivo = secure_filename(nome + '.' + extensao)
+        
+        # Verifica se o diretório temporário existe e, se não, cria-o
+        if not os.path.exists(pasta_temp):
+            os.makedirs(pasta_temp)
+                    
+        caminho_completo = os.path.join(pasta_temp, arquivo)
+        imagem.save(os.path.join(pasta_temp, arquivo))
+
+        # Nome do arquivo de chave de serviço
+        chave = 'projetoteste-398517-9de2939260b4.json'
+
+        # Caminho completo para o arquivo de chave de serviço
+        caminho_arquivo_json = pasta_raiz + '/' + chave
+
+        # Define as credenciais de autenticação para o Google Cloud Storage
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = caminho_arquivo_json
+
+        nome_bucket = "bd_imagens"
+        caminho_imagem_local = caminho_completo
+        nome_blob_destino = arquivo
+        
+        fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino)
+        url = obter_url_imagem(nome_bucket, nome_blob_destino)
+        
+        # Exclui o diretório temporário e seu conteúdo
+        os.remove(caminho_completo)
+        
+        # Chame a função desejada para salvar no BD com os dados recebidos
+        resultado = editar_produto_banco_dados(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url, id_produto)
+        
+        # Retorne uma resposta adequada para o JavaScript
+        if resultado == 'Cadastrado':
+            return 'Produto editado com sucesso!', 200
+        else:
+            return 'Ocorreu um erro ao editar o produto. Por favor, tente novamente.', 500
+    else:
+        url = 'https://storage.cloud.google.com/bd_imagens/sem_imagem.png'
+        # Chame a função desejada com os dados recebidos
+        resultado = editar_produto_banco_dados(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url, id_produto)
+        return 'Produto editado com sucesso!', 200
+
+# função que cadastra o produto.
+def editar_produto_banco_dados(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, caminho_imagem, id_produto):
+    banco = conexao_bd()
+    cursor = banco.cursor()
+
+    # Comandos SQL para inserir produtos
+    sql = "UPDATE produtos SET nome = %s, quantidade = %s, descricao = %s, preco_compra = %s, preco_venda = %s, lucro_reais = %s, lucro_porcentagem = %s, caminho_imagem = %s WHERE id = %s"
+    dados_produto = (nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, caminho_imagem, id_produto)
+
+    # Executar o comando SQL
+    cursor.execute(sql, dados_produto)
+
+    # Commit para salvar as alterações no banco de dados
+    banco.commit()
+
+    # Fechar o cursor e a conexão
+    cursor.close()
+    banco.close()
+    return 'Cadastrado' 
 
 @app.route('/listar_produtos')
 def listar_produtos():
