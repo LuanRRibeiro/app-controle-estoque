@@ -664,54 +664,79 @@ def salvar_produto_editado(id_produto):
         enviado = 'sim'
     else:
         enviado = 'nao'
-    
+
+    # Conectando no Banco de Dados
+    banco = conexao_bd()
+    cursor = banco.cursor()
+
+    # Primeiro, obtenha nome e a URL da imagem do produto antes de excluí-lo
+    cursor.execute("SELECT nome, caminho_imagem FROM produtos WHERE id = %s", (id_produto,))
+    produto = cursor.fetchone()
+
+    nome_produto = produto[0]
+    imagem_url = produto[1]
+
     if enviado == 'sim':
-        # Obtém pasta raiz do aplicativo
-        pasta_raiz = os.path.dirname(os.path.realpath(__file__))
-        
-        pasta_temp = '/tmp/temp'
+        if produto:
+            if nome_produto != nome:
+                # Se a URL da imagem existir, exclua a imagem do GCS
+                if imagem_url:
+                    # Chamando a função para excluir a imagem para que possamos inserir a outra com novo nome
+                    excluir_imagem_gcs(imagem_url)
 
-        # Obtém a extensão do arquivo
-        extensao = imagem.filename.split('.')[-1]
 
-        # Obtém o nome do arquivo com extensão
-        arquivo = secure_filename(nome + '.' + extensao)
-        
-        # Verifica se o diretório temporário existe e, se não, cria-o
-        if not os.path.exists(pasta_temp):
-            os.makedirs(pasta_temp)
-                    
-        caminho_completo = os.path.join(pasta_temp, arquivo)
-        imagem.save(os.path.join(pasta_temp, arquivo))
+            # Obtém pasta raiz do aplicativo
+            pasta_raiz = os.path.dirname(os.path.realpath(__file__))
+            
+            pasta_temp = '/tmp/temp'
 
-        # Nome do arquivo de chave de serviço
-        chave = 'projetoteste-398517-9de2939260b4.json'
+            # Obtém a extensão do arquivo
+            extensao = imagem.filename.split('.')[-1]
 
-        # Caminho completo para o arquivo de chave de serviço
-        caminho_arquivo_json = pasta_raiz + '/' + chave
+            # Obtém o nome do arquivo com extensão
+            arquivo = secure_filename(nome + '.' + extensao)
+            
+            # Verifica se o diretório temporário existe e, se não, cria-o
+            if not os.path.exists(pasta_temp):
+                os.makedirs(pasta_temp)
+                        
+            caminho_completo = os.path.join(pasta_temp, arquivo)
+            imagem.save(os.path.join(pasta_temp, arquivo))
 
-        # Define as credenciais de autenticação para o Google Cloud Storage
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = caminho_arquivo_json
+            # Nome do arquivo de chave de serviço
+            chave = 'projetoteste-398517-9de2939260b4.json'
 
-        nome_bucket = "bd_imagens"
-        caminho_imagem_local = caminho_completo
-        nome_blob_destino = arquivo
-        
-        fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino)
-        url = obter_url_imagem(nome_bucket, nome_blob_destino)
-        
-        # Exclui o diretório temporário e seu conteúdo
-        os.remove(caminho_completo)
-        
-        # Chame a função desejada para salvar no BD com os dados recebidos
-        resultado = editar_produto_banco_dados(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url, id_produto)
-        
-        # Retorne uma resposta adequada para o JavaScript
-        if resultado == 'Cadastrado':
-            return 'Produto editado com sucesso!', 200
-        else:
-            return 'Ocorreu um erro ao editar o produto. Por favor, tente novamente.', 500
+            # Caminho completo para o arquivo de chave de serviço
+            caminho_arquivo_json = pasta_raiz + '/' + chave
+
+            # Define as credenciais de autenticação para o Google Cloud Storage
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = caminho_arquivo_json
+
+            nome_bucket = "bd_imagens"
+            caminho_imagem_local = caminho_completo
+            nome_blob_destino = arquivo
+            
+            fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino)
+            url = obter_url_imagem(nome_bucket, nome_blob_destino)
+            
+            # Exclui o diretório temporário e seu conteúdo
+            os.remove(caminho_completo)
+            
+            # Chame a função desejada para salvar no BD com os dados recebidos
+            resultado = editar_produto_banco_dados(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url, id_produto)
+            
+            # Retorne uma resposta adequada para o JavaScript
+            if resultado == 'Cadastrado':
+                return 'Produto editado com sucesso!', 200
+            else:
+                return 'Ocorreu um erro ao editar o produto. Por favor, tente novamente.', 500
     else:
+        if nome_produto != nome:
+            # Se a URL da imagem existir, exclua a imagem do GCS
+            if imagem_url:
+                # Chamando a função para excluir a imagem para que possamos inserir a outra com novo nome
+                excluir_imagem_gcs(imagem_url)
+
         url = 'https://storage.cloud.google.com/bd_imagens/sem_imagem.png'
         # Chame a função desejada com os dados recebidos
         resultado = editar_produto_banco_dados(nome, quantidade, descricao, preco_compra, preco_venda, lucro_reais, lucro_porcentagem, url, id_produto)
@@ -860,7 +885,7 @@ def excluir_imagem_gcs(imagem_url):
             try:
                 # Excluir o blob
                 blob.delete()
-                print(f"Imagem '{nome_blob}' excluída com sucesso do bucket '{nome_bucket}'.")
+                #print(f"Imagem '{nome_blob}' excluída com sucesso do bucket '{nome_bucket}'.")
             except Exception as e:
                 print(f"Erro ao excluir a imagem: {e}")
     else:
