@@ -21,12 +21,6 @@
                 </div>
                 <div class="col-md-4">
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="em_estoque" id="em_estoque" value="1" {% if em_estoque %}checked{% endif %}>
-                        <label class="form-check-label" for="em_estoque">
-                            Produtos em Estoque
-                        </label>
-                    </div>
-                    <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="fora_de_estoque" id="fora_de_estoque" value="1" {% if fora_de_estoque %}checked{% endif %}>
                         <label class="form-check-label" for="fora_de_estoque">
                             Produtos Fora de Estoque
@@ -63,6 +57,34 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <!-- Paginação -->
+        <nav aria-label="Paginação">
+            <ul class="pagination justify-content-center">
+                {% if pagina > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?pagina=1&search={{ search_query }}&fora_de_estoque={{ '1' if fora_de_estoque else '0' }}">Primeira</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?pagina={{ pagina - 1 }}&search={{ search_query }}&fora_de_estoque={{ '1' if fora_de_estoque else '0' }}">Anterior</a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ pagina }}</span>
+                </li>
+
+                {% if pagina < total_paginas %}
+                    <li class="page-item">
+                        <a class="page-link" href="?pagina={{ pagina + 1 }}&search={{ search_query }}&fora_de_estoque={{ '1' if fora_de_estoque else '0' }}">Próxima</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?pagina={{ total_paginas }}&search={{ search_query }}&fora_de_estoque={{ '1' if fora_de_estoque else '0' }}">Última</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

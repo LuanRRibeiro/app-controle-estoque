@@ -19,6 +19,8 @@ import os
 import re
 from urllib.parse import urlsplit
 from psycopg2.extras import RealDictCursor
+from decimal import Decimal
+
 
 
 
@@ -63,6 +65,8 @@ def login():
         sql = 'SELECT id_usuario, senha FROM vendedores WHERE email = %s'
         cursor.execute(sql, (email,))
         usuario = cursor.fetchone()
+
+        
 
         cursor.close()
         banco.close()
@@ -765,66 +769,89 @@ def editar_produto_banco_dados(nome, quantidade, descricao, preco_compra, preco_
 @app.route('/listar_produtos')
 def listar_produtos():
     search = request.args.get('search', '')
-    em_estoque = request.args.get('em_estoque', '0') == '1'
-    fora_de_estoque = request.args.get('fora_de_estoque', '0') == '1'
+    fora_de_estoque = request.args.get('fora_de_estoque', '0') == '1'  # Desativado por padrão
 
-    # Se nenhuma checkbox estiver marcada, não exibir nada
-    if not em_estoque and not fora_de_estoque:
-        produtos = []  # Lista vazia, não retorna nenhum produto
+    pagina = request.args.get('pagina', 1, type=int)
+    itens_por_pagina = 10
+    offset = (pagina - 1) * itens_por_pagina
+
+    produtos = []
+    banco = conexao_bd()
+    cursor = banco.cursor()
+
+    # Construindo a consulta principal
+    sql = "SELECT * FROM produtos WHERE 1=1"  # Condição sempre verdadeira para permitir filtros dinâmicos
+    params = []
+
+    if fora_de_estoque:
+        sql += " AND quantidade = 0"
     else:
-        produtos = []
+        sql += " AND quantidade > 0"  # Padrão: exibir produtos em estoque
 
-        banco = conexao_bd()
-        cursor = banco.cursor()
+    if search:
+        try:
+            id_busca = int(search)
+            sql += " AND id = %s"
+            params.append(id_busca)
+        except ValueError:
+            sql += " AND nome ILIKE %s"
+            params.append(f'%{search}%')
 
-        sql = "SELECT * FROM produtos WHERE 1=1"
-        params = []
+    # Contagem total de produtos para a paginação
+    count_sql = "SELECT COUNT(*) FROM produtos WHERE 1=1"
+    count_params = []
 
-        if search:
-            try:
-                id_busca = int(search)
-                sql += " AND id = %s"
-                params.append(id_busca)
-            except ValueError:
-                sql += " AND nome ILIKE %s"
-                params.append(f'%{search}%')
-
-        if em_estoque and fora_de_estoque:
-            pass
-        elif em_estoque:
-            sql += " AND quantidade > 0"
-        elif fora_de_estoque:
-            sql += " AND quantidade = 0"
-
-        cursor.execute(sql, params)
-        produtos_bd = cursor.fetchall()
-
-        for produto in produtos_bd:
-            produtos.append({
-                'id': produto[0],
-                'nome': produto[1],
-                'quantidade': produto[2],
-                'descricao': produto[3],
-                'preco_compra': produto[4],
-                'preco_venda': produto[5],
-                'lucro_reais': produto[6],
-                'lucro_porcentagem': produto[7],
-                'imagem_url': produto[8]
-            })
-
-        banco.close()
-
-    # Verifica se a requisição foi feita via AJAX
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return render_template('product_list.html', produtos=produtos)
+    if fora_de_estoque:
+        count_sql += " AND quantidade = 0"
     else:
-        return render_template(
-            'listar_produtos.html',
-            produtos=produtos,
-            search_query=search,
-            em_estoque=em_estoque,
-            fora_de_estoque=fora_de_estoque
-        )
+        count_sql += " AND quantidade > 0"
+
+    if search:
+        try:
+            id_busca = int(search)
+            count_sql += " AND id = %s"
+            count_params.append(id_busca)
+        except ValueError:
+            count_sql += " AND nome ILIKE %s"
+            count_params.append(f'%{search}%')
+
+    cursor.execute(count_sql, count_params)
+    total_produtos = cursor.fetchone()[0]
+    total_paginas = (total_produtos // itens_por_pagina) + (1 if total_produtos % itens_por_pagina > 0 else 0)
+
+    # Aplicando ordenação e paginação
+    sql += " ORDER BY id LIMIT %s OFFSET %s"
+    params.extend([itens_por_pagina, offset])
+
+    cursor.execute(sql, params)
+    produtos_bd = cursor.fetchall()
+
+    for produto in produtos_bd:
+        produtos.append({
+            'id': produto[0],
+            'nome': produto[1],
+            'quantidade': produto[2],
+            'descricao': produto[3],
+            'preco_compra': produto[4],
+            'preco_venda': produto[5],
+            'lucro_reais': produto[6],
+            'lucro_porcentagem': produto[7],
+            'imagem_url': produto[8]
+        })
+
+    banco.close()
+
+    return render_template(
+        'listar_produtos.html',
+        produtos=produtos,
+        search_query=search,
+        fora_de_estoque=fora_de_estoque,
+        pagina=pagina,
+        total_paginas=total_paginas
+    )
+
+
+
 
 @app.route('/excluir-produto/<int:id>', methods=['POST'])
 def excluir_produto(id):
@@ -897,20 +924,78 @@ def pagina_pagamento():
     total = request.args.get('total', 0.00)
     return render_template('pagamento.html', total=float(total))
 
-# Função para finalizar o pagamento
-@app.route('/finalizar_pagamento', methods=['GET', 'POST'])
+# Função para finalizar o pagamento com desconto proporcional
+@app.route('/finalizar_pagamento', methods=['POST'])
 def finalizar_pagamento():
     banco = conexao_bd()
     cursor = banco.cursor()
 
-    if request.method == 'POST':
+    try:
+        desconto_total = float(request.form.get('desconto', 0))  # Obtém o desconto total da compra
+        tipo_pagamento = request.form.get('tipo_pagamento', 'não informado')  # Obtém o tipo de pagamento
+        
+        # 1. Buscar os itens do carrinho
+        cursor.execute("SELECT produto_id, quantidade FROM itens_no_carrinho;")
+        itens = cursor.fetchall()  # Lista de tuplas (produto_id, quantidade)
+
+        if not itens:
+            return render_template('pedido_finalizado.html', mensagem="Erro: Carrinho vazio.")
+      
+        # 2. Calcular o valor total da compra sem desconto
+        valor_total_sem_desconto = 0
+        precos_por_produto = {}  # Dicionário para armazenar preços antes do desconto
+  
+        for produto_id, quantidade in itens:
+            cursor.execute("SELECT preco_venda FROM produtos WHERE id = %s;", (produto_id,))
+            preco_atual = cursor.fetchone()
+
+            if preco_atual:
+                preco_unitario = preco_atual[0]
+                preco_total = quantidade * preco_unitario
+                precos_por_produto[produto_id] = preco_total  # Armazena o valor sem desconto
+                valor_total_sem_desconto += preco_total  # Soma o total geral
+       
+        # Evitar erro de divisão por zero
+        if valor_total_sem_desconto == 0:
+            return render_template('pedido_finalizado.html', mensagem="Erro: Total da compra inválido.")
+
+        # Evitar que o desconto seja maior que o valor total da compra
+        desconto_total = min(desconto_total, valor_total_sem_desconto)
+        # 3. Aplicar desconto proporcionalmente
+        for produto_id, quantidade in itens:
+            preco_total_original = float(precos_por_produto[produto_id])
+            valor_total_sem_desconto = float(valor_total_sem_desconto)
+
+            # Calcula a proporção do desconto para este produto
+            desconto_proporcional = float((preco_total_original / valor_total_sem_desconto) * desconto_total)
+           
+            preco_total_com_desconto = preco_total_original - desconto_proporcional
+           
+            # Garantir que o valor seja formatado corretamente para duas casas decimais
+            preco_total_com_desconto = round(preco_total_com_desconto, 2)
+
+            preco_total_com_desconto = Decimal(preco_total_com_desconto)
+
+            # Inserir na tabela vendas
+            cursor.execute("""INSERT INTO vendas (produto_id, quantidade_vendida, preco_total, tipo_pagamento) VALUES (%s, %s, %s, %s);""", (produto_id, quantidade, preco_total_com_desconto, tipo_pagamento))
+            
+        # 4. Excluir os itens do carrinho após registrar a venda
         cursor.execute("DELETE FROM itens_no_carrinho;")
+
+        # 5. Confirmar a transação no banco
         banco.commit()
+        mensagem = f"Pagamento finalizado com sucesso! Desconto total aplicado: R$ {desconto_total:.2f}"
+
+    except Exception as e:
+        banco.rollback()  # Reverte mudanças se houver erro
+        mensagem = f"Erro ao finalizar pagamento: {str(e)}"
+
+    finally:
         cursor.close()
         banco.close()
 
-    mensagem = "Pagamento finalizado com sucesso!"
     return render_template('pedido_finalizado.html', mensagem=mensagem)
+
 
 # Função para recurar senha do usuario
 @app.route('/pagina_recuperar_senha', methods=['GET','POST'])
