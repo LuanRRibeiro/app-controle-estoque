@@ -11,14 +11,12 @@
 <body>
     {% include 'navbar.html' %}
 
-
     <div class="container mt-5">
         <h1>Carrinho de Vendas</h1>
         <div id="compras-list" class="row mt-4">
             <!-- Produtos do carrinho serão inseridos aqui -->
         </div>
 
-    
         <footer class="footer">
             <div>
                 <p class="total-sum">Total: R$ 0.00</p>
@@ -108,23 +106,24 @@
         async function aumentarQuantidade(button) {
             var card = button.closest('.card');
             var id = card.getAttribute('data-id');
-            
             var quantidadeSpan = button.parentNode.querySelector('span');
             var quantidade = parseInt(quantidadeSpan.innerText);
             var estoqueSpan = card.querySelector('.text-muted');
             var estoque = parseInt(estoqueSpan.innerText.split(': ')[1]);
             var valorTotal = parseFloat(card.querySelector('.price-value').innerText);
-            var preco = valorTotal / quantidade
-
+            var preco = valorTotal / quantidade;
 
             if (estoque > 0) {
+                // Exibe o loading
+                exibirLoading();
+
                 quantidade++;
                 estoque--;
                 quantidadeSpan.innerText = quantidade;
                 estoqueSpan.innerText = "Estoque: " + estoque;
                 calcularTotal(card, quantidade, btn='+');
                 atualizarTotal();
-                                                
+                
                 var produto = {
                     id: id,
                     quantidade: 1,
@@ -132,14 +131,15 @@
                 };
 
                 const response = await fetch('/adicionar_carrinho', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(produto)
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(produto)
                 });
-                
 
+                // Esconde o loading após a resposta
+                esconderLoading();
             } else {
                 alert('Quantidade máxima atingida.');
             }
@@ -154,9 +154,12 @@
             var estoque = parseInt(estoqueSpan.innerText.split(': ')[1]);
             var estoqueOriginal = parseInt(card.getAttribute('data-estoque-original')); // Obtém o estoque original
             var valorTotal = parseFloat(card.querySelector('.price-value').innerText);
-            var preco = valorTotal / quantidade
+            var preco = valorTotal / quantidade;
 
             if (quantidade > 1) {
+                // Exibe o loading
+                exibirLoading();
+
                 quantidade--;
                 estoque++;
                 estoqueSpan.innerText = "Estoque: " + estoque;
@@ -171,20 +174,22 @@
                 };
 
                 const response = await fetch('/adicionar_carrinho', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(produto)
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(produto)
                 });
 
+                // Esconde o loading após a resposta
+                esconderLoading();
             } else {
                 if (confirm("Deseja remover o item do carrinho?")) {
                     removerItem(button);
+                }
             }
-        }
 }
-        
+      
         function calcularTotal(card, quantidade, btn) {
             var precoVenda = parseFloat(card.querySelector('.price-value').innerText);
             var precoUnitario;

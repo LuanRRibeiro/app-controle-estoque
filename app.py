@@ -20,8 +20,7 @@ import re
 from urllib.parse import urlsplit
 from psycopg2.extras import RealDictCursor
 from decimal import Decimal
-
-
+from math import ceil
 
 
 app = Flask(__name__)
@@ -112,10 +111,52 @@ def logout():
 def painel():
     if not esta_autenticado():
         return redirect(url_for('login'))
-    
-    carrinho_compras.clear()
 
+    carrinho_compras.clear()
     email = session.get('username')
+
+    # Obter o termo de busca
+    termo_busca = request.args.get('search', '').strip().lower()
+
+    # Definir quantos produtos por página
+    produtos_por_pagina = 10
+
+    # Obter o número da página atual (padrão: 1)
+    pagina_atual = request.args.get('page', 1, type=int)
+    offset = (pagina_atual - 1) * produtos_por_pagina  # Para saber de onde começar
+
+    # Construir a consulta SQL com o filtro de busca
+    sql_buscar_produtos = '''
+        SELECT id, nome, descricao, quantidade, preco_venda, caminho_imagem
+        FROM produtos
+        WHERE LOWER(nome) LIKE %s OR LOWER(descricao) LIKE %s
+        ORDER BY id ASC
+        LIMIT %s OFFSET %s
+    '''
+    
+    # Se houver termo de busca, usamos ele no LIKE, senão fazemos uma busca completa
+    busca_param = f"%{termo_busca}%"
+
+    banco = conexao_bd()
+    cursor = banco.cursor()
+    cursor.execute(sql_buscar_produtos, (busca_param, busca_param, produtos_por_pagina, offset))
+    produtos = cursor.fetchall()
+
+    # Montar a lista de produtos para enviar ao template
+    lista_produtos = [{
+        'id': produto[0],
+        'nome': produto[1],
+        'descricao': produto[2],
+        'quantidade': produto[3],
+        'preco_venda': float(produto[4]),
+        'imagem': produto[5]
+    } for produto in produtos if produto[3] > 0]
+
+    # Verificar quantos produtos existem no total após a busca
+    cursor.execute("SELECT COUNT(*) FROM produtos WHERE LOWER(nome) LIKE %s OR LOWER(descricao) LIKE %s", (busca_param, busca_param))
+    total_produtos = cursor.fetchone()[0]
+    total_paginas = 0 if total_produtos == 0 else (total_produtos + produtos_por_pagina - 1) // produtos_por_pagina
+
     
     # Verifica os itens no carrinho do usuário
     sql_verificar = '''
@@ -123,9 +164,6 @@ def painel():
         FROM itens_no_carrinho 
         WHERE usuario_id = (SELECT id_usuario FROM vendedores WHERE email = %s)
     '''
-
-    banco = conexao_bd()
-    cursor = banco.cursor()
     cursor.execute(sql_verificar, (email,))
     resultado = cursor.fetchall()
     
@@ -134,10 +172,10 @@ def painel():
         quantidade_selecionada = item[1]
 
         sql_verificar_produto = '''
-        SELECT nome, descricao, quantidade, preco_venda
+        SELECT nome, descricao, quantidade, preco_venda, caminho_imagem
         FROM produtos 
-        WHERE id = %s'''
-
+        WHERE id = %s
+        '''
         cursor.execute(sql_verificar_produto, (produto_id,))
         resultado_produto = cursor.fetchone()
         
@@ -145,22 +183,33 @@ def painel():
         descricao = resultado_produto[1]
         estoque = resultado_produto[2]
         preco = float(resultado_produto[3])
+        imagem = resultado_produto[4]
 
-        valor_total = float(preco * quantidade_selecionada)
+        valor_total = preco * quantidade_selecionada
 
-        carrinho_compras.append({'id': produto_id, 'nome': nome, 'descricao': descricao, 'estoque': estoque, 'quantidade': quantidade_selecionada, 'preco': preco, 'valorTotal': valor_total})
+        carrinho_compras.append({
+            'id': produto_id,
+            'nome': nome,
+            'descricao': descricao,
+            'estoque': estoque,
+            'quantidade': quantidade_selecionada,
+            'preco': preco,
+            'valorTotal': valor_total,
+            'imagem': imagem
+        })
 
-
-    if carrinho_compras == []:
-        # Essa busca produto, busca no banco de dados e carrega a lista na pagina
-        quantidade_itens_carrinho = 0
-    else:
-        # Atualiza a quantidade total de itens no carrinho
-        quantidade_itens_carrinho = calcular_quantidade_total_carrinho(carrinho_compras)
-        
+    # Quantidade de itens no carrinho
+    quantidade_itens_carrinho = calcular_quantidade_total_carrinho(carrinho_compras) if carrinho_compras else 0
     
-    # Renderiza o template 'painel.html' passando a lista de produtos e a quantidade de itens no carrinho
-    return render_template('painel.html', produtos='', quantidade_itens_carrinho=quantidade_itens_carrinho)
+    # Renderizar o template com os produtos paginados e o termo de busca
+    return render_template(
+        'painel.html',
+        produtos=lista_produtos,
+        quantidade_itens_carrinho=quantidade_itens_carrinho,
+        pagina_atual=pagina_atual,
+        total_paginas=total_paginas,
+        search=termo_busca
+    )
 
 # Buscar_produto no banco de dados
 @app.route('/buscar_produtos', methods=['POST'])
@@ -413,7 +462,6 @@ def aumentar_quantidade_produto_no_bd(id_produto, quantidade):
 # Função para diminuir quantidade do estoque do produto no banco de dados
 def diminuir_quantidade_produto_no_bd(id_produto, quantidade, tipo):
     # Aqui você implementa a lógica para diminuir a quantidade do produto no banco de dados
-    
     banco = conexao_bd()
     cursor = banco.cursor()
 
@@ -438,17 +486,21 @@ def calcular_quantidade_total_carrinho(carrinho_compras):
     
     sql_verificar = '''
         SELECT SUM(quantidade) AS total_quantidade 
-        FROM itens_no_carrinho 
+        FROM itens_no_carrinho
+        WHERE usuario_id = (SELECT id_usuario FROM vendedores WHERE email = %s) 
     '''
     banco = conexao_bd()
     cursor = banco.cursor()
-    cursor.execute(sql_verificar,)
-    total_quantidade = cursor.fetchone()[0]
+
+    email = session.get('username')
+
+    cursor.execute(sql_verificar, (email,))
+    quantidade_itens_carrinho = cursor.fetchone()[0] or 0
 
     cursor.close()
     banco.close()
 
-    return total_quantidade
+    return quantidade_itens_carrinho
     
 # Função que atualiza quantidade de produto em estoque conforme aumento ou diminui no carrinho
 @app.route('/atualizar_estoque', methods=['POST'])
@@ -508,7 +560,6 @@ def pagina_adicionar_produto():
         return 'Produto já cadastrado anteriormente!', 409
     else:
         if enviado == 'sim':
-            
             # Obtém pasta raiz do aplicativo
             pasta_raiz = os.path.dirname(os.path.realpath(__file__))
             
@@ -783,11 +834,13 @@ def listar_produtos():
     sql = "SELECT * FROM produtos WHERE 1=1"  # Condição sempre verdadeira para permitir filtros dinâmicos
     params = []
 
+    # Filtro para produtos fora de estoque
     if fora_de_estoque:
         sql += " AND quantidade = 0"
     else:
         sql += " AND quantidade > 0"  # Padrão: exibir produtos em estoque
 
+    # Filtro de busca por ID ou nome
     if search:
         try:
             id_busca = int(search)
@@ -815,6 +868,7 @@ def listar_produtos():
             count_sql += " AND nome ILIKE %s"
             count_params.append(f'%{search}%')
 
+    # Executa a contagem de produtos
     cursor.execute(count_sql, count_params)
     total_produtos = cursor.fetchone()[0]
     total_paginas = (total_produtos // itens_por_pagina) + (1 if total_produtos % itens_por_pagina > 0 else 0)
@@ -823,6 +877,7 @@ def listar_produtos():
     sql += " ORDER BY id LIMIT %s OFFSET %s"
     params.extend([itens_por_pagina, offset])
 
+    # Executa a consulta para pegar os produtos paginados
     cursor.execute(sql, params)
     produtos_bd = cursor.fetchall()
 
@@ -841,6 +896,7 @@ def listar_produtos():
 
     banco.close()
 
+    # Retorna a página com os dados dos produtos
     return render_template(
         'listar_produtos.html',
         produtos=produtos,
@@ -849,9 +905,6 @@ def listar_produtos():
         pagina=pagina,
         total_paginas=total_paginas
     )
-
-
-
 
 @app.route('/excluir-produto/<int:id>', methods=['POST'])
 def excluir_produto(id):
@@ -995,7 +1048,6 @@ def finalizar_pagamento():
         banco.close()
 
     return render_template('pedido_finalizado.html', mensagem=mensagem)
-
 
 # Função para recurar senha do usuario
 @app.route('/pagina_recuperar_senha', methods=['GET','POST'])

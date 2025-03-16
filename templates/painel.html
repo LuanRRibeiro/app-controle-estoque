@@ -20,9 +20,10 @@
     <!-- Conteúdo principal -->
     <div id="container" class="container mt-4 pt-5">
         <h1>Painel de Vendas</h1>
-        <form id="form" onsubmit="event.preventDefault(); buscarProduto();">
-            <input type="text" id="produto" placeholder="ID ou Nome do Produto" class="form-control mb-3" oninput="debouncedBuscarProduto()">
+        <form id="form" method="GET" action="{{ url_for('painel') }}">
+            <input type="text" id="produto" name="search" placeholder="ID ou Nome do Produto" class="form-control mb-3" value="{{ request.args.get('search', '') }}" oninput="debouncedBuscarProduto()" style="text-transform: uppercase;">
         </form>
+
         
         <div id="compras-list" class="row">
             <!-- Produtos serão inseridos aqui -->
@@ -35,31 +36,38 @@
         <img src="/static/imagem/carrinho.png" alt="Carrinho de compras">
     </div>
 
+    
+    <div class="pagination d-flex justify-content-center mt-4 mb-4">
+        {% if pagina_atual > 1 %}
+            <a href="{{ url_for('painel', page=pagina_atual-1, search=request.args.get('search', '')) }}" class="btn btn-secondary">Página Anterior</a>
+        {% endif %}
+
+        <span class="mx-3 align-self-center">
+            {% if total_paginas > 0 %}
+                Página {{ pagina_atual }} de {{ total_paginas }}
+            {% else %}
+                Página 0 de 0
+            {% endif %}
+        </span>
+
+        {% if pagina_atual < total_paginas %}
+            <a href="{{ url_for('painel', page=pagina_atual+1, search=request.args.get('search', '')) }}" class="btn btn-secondary">Próxima Página</a>
+        {% endif %}
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
         var produtos = {{ produtos | tojson | safe }};
         var timeout = null;
 
-        async function buscarProduto() {
-            const termo = document.getElementById('produto').value.toLowerCase();
-            exibirLoading();
+        document.addEventListener("DOMContentLoaded", function() {
+            exibirProdutos(produtos); // Exibir produtos ao carregar a página
+        });
 
-            try {
-                const response = await fetch('/buscar_produtos', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ termo: termo })
-                });
-                const data = await response.json();
-                exibirProdutos(data);
-            } catch (error) {
-                console.error('Erro ao buscar produtos:', error);
-            } finally {
-                esconderLoading();
-            }
+        function buscarProduto() {
+            const termo = document.getElementById('produto').value.toLowerCase();
+            window.location.href = `{{ url_for('painel') }}?search=${termo}`;
         }
 
         function debouncedBuscarProduto() {
@@ -78,10 +86,12 @@
             listaCompras.innerHTML = '';
 
             produtos.forEach(function(produto) {
+                var imagemSrc = produto.imagem ? produto.imagem : "/static/imagem/default.png"; // Caso não tenha imagem
+
                 var produtoHTML = `
                     <div class="col-12">
                         <div class="product-card d-flex" data-preco-venda="${produto.preco_venda}" data-id="${produto.id}">
-                            <img src="${produto.imagem}" alt="${produto.nome}" class="product-image">
+                            <img src="${imagemSrc}" alt="${produto.nome}" class="product-image">
                             <div class="product-details">
                                 <p class="codigo-produto">Código: ${produto.id}</p>
                                 <h5 class="nome-produto">${produto.nome}</h5>
