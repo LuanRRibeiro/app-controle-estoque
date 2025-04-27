@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Vendas</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <link rel="icon" href="/static/imagem/icone.ico" type="image/x-icon">
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container mt-5 mb-5" style="padding-top: 20px;">
+        <h2 class="text-center mb-4">📊 Dashboard de Vendas</h2>
+
+        <div class="row">
+            <!-- Produtos Mais Vendidos -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0"><i class="fas fa-chart-line"></i> Produtos Mais Vendidos</h4>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Quantidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for produto, qtd in produtos_mais_vendidos %}
+                                    <tr>
+                                        <td>{{ produto }}</td>
+                                        <td><span class="badge bg-success">{{ qtd }}</span></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Produtos Menos Vendidos -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-danger text-white">
+                        <h4 class="mb-0"><i class="fas fa-chart-bar"></i> Produtos Menos Vendidos</h4>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Quantidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for produto, qtd in produtos_menos_vendidos %}
+                                    <tr>
+                                        <td>{{ produto }}</td>
+                                        <td><span class="badge bg-danger">{{ qtd }}</span></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forma de Pagamento Mais Utilizada -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0"><i class="fas fa-credit-card"></i> Forma de Pagamento Mais Utilizada</h4>
+                    </div>
+                    <div class="card-body text-center">
+                        <p class="fs-4 text-uppercase"><strong>{{ forma_pagamento }}</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

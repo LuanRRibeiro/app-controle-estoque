@@ -1159,6 +1159,56 @@ def nova_senha():
     return jsonify(success=True, message='Senha alterada com sucesso'), 200
 
 
+@app.route("/filtro")
+def filtro():
+    conexao = conexao_bd()
+    if conexao is None:
+        return "Erro ao conectar ao banco"
+
+    cursor = conexao.cursor()
+
+    # Produtos mais vendidos
+    cursor.execute("""
+        SELECT p.nome, SUM(v.quantidade_vendida) AS total_vendido
+        FROM vendas v
+        JOIN produtos p ON v.produto_id = p.id
+        GROUP BY p.nome
+        ORDER BY total_vendido DESC
+        LIMIT 5
+    """)
+    produtos_mais_vendidos = cursor.fetchall()
+
+    # Produtos menos vendidos
+    cursor.execute("""
+        SELECT p.nome, SUM(v.quantidade_vendida) AS total_vendido
+        FROM vendas v
+        JOIN produtos p ON v.produto_id = p.id
+        GROUP BY p.nome
+        ORDER BY total_vendido ASC
+        LIMIT 5
+    """)
+    produtos_menos_vendidos = cursor.fetchall()
+
+    # Forma de pagamento mais usada
+    cursor.execute("""
+        SELECT tipo_pagamento, COUNT(*) AS total
+        FROM vendas
+        GROUP BY tipo_pagamento
+        ORDER BY total DESC
+        LIMIT 1
+    """)
+    forma_pagamento = cursor.fetchone()
+    forma_pagamento = forma_pagamento[0] if forma_pagamento else "Nenhum dado"
+
+    # Fechar conexão
+    cursor.close()
+    conexao.close()
+
+    return render_template("filtro.html",
+                           produtos_mais_vendidos=produtos_mais_vendidos,
+                           produtos_menos_vendidos=produtos_menos_vendidos,
+                           forma_pagamento=forma_pagamento)
+
 if __name__ == '__main__':
     #app.run()
     app.run(debug=True)
