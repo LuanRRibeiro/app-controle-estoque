@@ -13,9 +13,6 @@ import pandas as pd
 from prophet import Prophet
 from psycopg2.extras import execute_values
 
-
-
-
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -36,6 +33,20 @@ from dotenv import load_dotenv
 
 # ====== Argon2id (senha) ======
 from argon2 import PasswordHasher, exceptions as argon2_exc
+
+import json
+
+# Inicializa client GCP
+if os.getenv("GCP_CREDENTIALS_JSON"):
+    # Produção / Render
+    gcp_creds_dict = json.loads(os.getenv("GCP_CREDENTIALS_JSON"))
+    credentials = service_account.Credentials.from_service_account_info(gcp_creds_dict)
+    client = storage.Client(credentials=credentials)
+else:
+    # Local: usa arquivo JSON físico
+    caminho_json = os.path.join(os.path.dirname(__file__), "projetoteste-398517-2d1c1be5533f.json")
+    credentials = service_account.Credentials.from_service_account_file(caminho_json)
+    client = storage.Client(credentials=credentials)
 
 ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=2)
 
@@ -596,28 +607,15 @@ def pagina_adicionar_produto():
 
     # 2) Se tiver imagem, sobe para produtos/{id}/...
     if tem_upload:
-        pasta_raiz = os.path.dirname(os.path.realpath(__file__))
         pasta_temp = '/tmp/temp'
         if not os.path.exists(pasta_temp):
             os.makedirs(pasta_temp)
 
         ext = os.path.splitext(secure_filename(imagem.filename))[1].lower() or ".jpg"
-
-        # Escolha UMA das duas linhas abaixo:
-        # A) arquivo com o nome do produto (se o nome mudar, terá que renomear depois):
         blob_destino = montar_blob_produto(id_produto, nome, ext, usar_nome_no_arquivo=True)
-        # B) arquivo fixo 'principal.ext' (NÃO precisa renomear quando o nome mudar):
-        # blob_destino = montar_blob_produto(id_produto, nome, ext, usar_nome_no_arquivo=False)
-
         caminho_tmp = os.path.join(pasta_temp, f"tmp-{id_produto}{ext}")
         imagem.save(caminho_tmp)
 
-        # Credenciais GCP (se não estiver setado antes)
-        chave = 'projetoteste-398517-0c1513a4a70e.json'
-        caminho_arquivo_json = os.path.join(pasta_raiz, chave)
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = caminho_arquivo_json
-
-        # Sobe sobrescrevendo (sua função já foi ajustada para deletar se existir)
         fazer_upload_imagem_gcs(nome_bucket, caminho_tmp, blob_destino)
         url_final = f"https://storage.cloud.google.com/{nome_bucket}/{blob_destino}"
 
@@ -634,11 +632,11 @@ def pagina_adicionar_produto():
     return 'Produto cadastrado com sucesso!', 200
 
 def fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino):
-    cliente = storage.Client()
-    bucket = cliente.bucket(nome_bucket)
+    # usa o client global já configurado
+    bucket = client.bucket(nome_bucket)
     blob = bucket.blob(nome_blob_destino)
 
-    # sobrescreve de verdade
+    # sobrescreve se existir
     if blob.exists():
         blob.delete()
 
@@ -646,11 +644,12 @@ def fazer_upload_imagem_gcs(nome_bucket, caminho_imagem_local, nome_blob_destino
     blob.upload_from_filename(caminho_imagem_local, content_type=content_type)
 
 def obter_url_imagem(nome_bucket, nome_blob):
-    cliente_storage = storage.Client()
-    bucket = cliente_storage.bucket(nome_bucket)
+    # usa o client global já configurado
+    bucket = client.bucket(nome_bucket)
     blob = bucket.blob(nome_blob)
     url = blob.generate_signed_url(expiration=timedelta(days=3652))
     return url
+
 
 def produto_existe(nome_produto):
     banco = conexao_bd()
@@ -780,7 +779,7 @@ def salvar_produto_editado(id_produto):
         imagem.save(caminho_temp)
 
         # Credenciais (ajuste se já inicializa em outro lugar)
-        chave = 'projetoteste-398517-0c1513a4a70e.json'
+        chave = 'projetoteste-398517-2d1c1be5533f.json'
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(pasta_raiz, chave)
 
         # Apaga o destino se existir (pra não criar "-1")
@@ -925,28 +924,33 @@ def excluir_produto(id):
             excluir_imagem_gcs(imagem_url)
     return redirect(url_for('listar_produtos'))
 
-def excluir_imagem_gcs(imagem_url):
-    pasta_raiz = os.path.dirname(os.path.realpath(__file__))
-    caminho_chave = os.path.join(pasta_raiz, 'projetoteste-398517-0c1513a4a70e.json')
-    credentials = service_account.Credentials.from_service_account_file(caminho_chave)
-    storage_client = storage.Client(credentials=credentials)
+def excluir_imagem_gcs(imagem_url: str):
+    """
+    Exclui a imagem no GCS a partir da URL.
+    Não deleta 'sem_imagem.png'.
+    Usa o client global já configurado.
+    """
     nome_bucket = 'bd_imagens'
 
+    # extrai o caminho do blob a partir da URL
     parsed_url = urlsplit(imagem_url)
     path = parsed_url.path
     nome_blob = path.lstrip('/').replace(f'{nome_bucket}/', '', 1)
-    
-    if nome_blob:
-        bucket = storage_client.bucket(nome_bucket)
-        blob = bucket.blob(nome_blob)
-        if nome_blob != 'sem_imagem.png':
-            try:
-                blob.delete()
-            except Exception as e:
-                print(f"Erro ao excluir a imagem: {e}")
-    else:
-        print("URL de imagem inválida.")
 
+    if nome_blob and nome_blob != 'sem_imagem.png':
+        try:
+            bucket = client.bucket(nome_bucket)
+            blob = bucket.blob(nome_blob)
+            blob.delete()
+        except Exception as e:
+            print(f"Erro ao excluir a imagem: {e}")
+    else:
+        print("URL de imagem inválida ou imagem padrão, nada a excluir.")
+
+
+# ===============================
+# Pagamento
+# ===============================
 @app.route('/pagina_pagamento', methods=['GET'])
 def pagina_pagamento():
     total = request.args.get('total', 0.00)
@@ -972,7 +976,7 @@ def finalizar_pagamento():
             cursor.execute("SELECT preco_venda FROM produtos WHERE id = %s;", (produto_id,))
             preco_atual = cursor.fetchone()
             if preco_atual:
-                preco_unitario = preco_atual[0]
+                preco_unitario = preco_atual[0] 
                 preco_total = quantidade * preco_unitario
                 precos_por_produto[produto_id] = preco_total
                 valor_total_sem_desconto += preco_total
