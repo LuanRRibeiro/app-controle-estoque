@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque</title>
+    <link rel="icon" href="/static/imagem/icone.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/painel.css">
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <!-- Div de sobreposição -->
+    <div class="overlay" id="overlay" style="display:none;">
+        <img src="/static/imagem/Loading.gif" class="loading-gif" alt="Loading...">
+    </div>
+
+    <!-- Conteúdo principal -->
+    <div id="container" class="container mt-4 pt-5">
+        <h1>Painel de Vendas</h1>
+        <form id="form" method="GET" action="{{ url_for('painel') }}">
+            <input type="text" id="produto" name="search" placeholder="ID ou Nome do Produto" class="form-control mb-3" value="{{ request.args.get('search', '') }}" oninput="debouncedBuscarProduto()" style="text-transform: uppercase;">
+        </form>
+
+        
+        <div id="compras-list" class="row">
+            <!-- Produtos serão inseridos aqui -->
+        </div>
+    </div>
+
+    <!-- Botão do carrinho de compras -->
+    <div id="carrinho-icon" class="carrinho-icon" onclick="irParaCarrinho()">
+        <span id="quantidade-itens-carrinho" class="quantidade-itens">{{ quantidade_itens_carrinho }}</span>
+        <img src="/static/imagem/carrinho.png" alt="Carrinho de compras">
+    </div>
+
+    
+    <div class="pagination d-flex justify-content-center mt-4 mb-4">
+        {% if pagina_atual > 1 %}
+            <a href="{{ url_for('painel', page=pagina_atual-1, search=request.args.get('search', '')) }}" class="btn btn-secondary">Página Anterior</a>
+        {% endif %}
+
+        <span class="mx-3 align-self-center">
+            {% if total_paginas > 0 %}
+                Página {{ pagina_atual }} de {{ total_paginas }}
+            {% else %}
+                Página 0 de 0
+            {% endif %}
+        </span>
+
+        {% if pagina_atual < total_paginas %}
+            <a href="{{ url_for('painel', page=pagina_atual+1, search=request.args.get('search', '')) }}" class="btn btn-secondary">Próxima Página</a>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        var produtos = {{ produtos | tojson | safe }};
+        var timeout = null;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            exibirProdutos(produtos); // Exibir produtos ao carregar a página
+        });
+
+        function buscarProduto() {
+            const termo = document.getElementById('produto').value.toLowerCase();
+            window.location.href = `{{ url_for('painel') }}?search=${termo}`;
+        }
+
+        function debouncedBuscarProduto() {
+            clearTimeout(timeout);
+            timeout = setTimeout(buscarProduto, 500); // 500ms delay
+        }
+
+        function createElementFromHTML(htmlString) {
+            var div = document.createElement('div');
+            div.innerHTML = htmlString.trim();
+            return div.firstChild; 
+        }
+
+        function exibirProdutos(produtos) {
+            var listaCompras = document.getElementById('compras-list');
+            listaCompras.innerHTML = '';
+
+            produtos.forEach(function(produto) {
+                var imagemSrc = produto.imagem ? produto.imagem : "/static/imagem/default.png"; // Caso não tenha imagem
+
+                var produtoHTML = `
+                    <div class="col-12">
+                        <div class="product-card d-flex" data-preco-venda="${produto.preco_venda}" data-id="${produto.id}">
+                            <img src="${imagemSrc}" alt="${produto.nome}" class="product-image">
+                            <div class="product-details">
+                                <p class="codigo-produto">Código: ${produto.id}</p>
+                                <h5 class="nome-produto">${produto.nome}</h5>
+                                <p>${produto.descricao}</p>
+                                <p class="product-availability">+${produto.quantidade} disponíveis</p>
+                            </div>
+                            <div class="product-actions d-flex align-items-center justify-content-between">
+                                <button type="button" onclick="diminuirQuantidade(this)" class="btn btn-outline-secondary">-</button>
+                                <span class="mx-2">1</span>
+                                <button type="button" onclick="aumentarQuantidade(this)" class="btn btn-outline-secondary">+</button>
+                                <p class="product-price align-self-center">R$ <span class="price-value">${produto.preco_venda.toFixed(2)}</span></p>
+                                <button type="button" onclick="adicionarItemCarrinho(this)" class="btn btn-primary"><i class="bi bi-cart-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                listaCompras.appendChild(createElementFromHTML(produtoHTML));
+            });
+        }
+
+        function aumentarQuantidade(button) {
+            var quantidadeSpan = button.parentNode.querySelector('span');
+            var quantidade = parseInt(quantidadeSpan.innerText);
+            var estoque = parseInt(button.parentNode.parentNode.querySelector('.product-availability').innerText.match(/\d+/)[0]);
+
+            if (quantidade < estoque) {
+                quantidade++;
+                quantidadeSpan.innerText = quantidade;
+                calcularTotal(); 
+            } else {
+                alert('Quantidade máxima atingida.');
+            }
+        }
+
+        function diminuirQuantidade(button) {
+            var quantidadeSpan = button.parentNode.querySelector('span');
+            var quantidade = parseInt(quantidadeSpan.innerText);
+            
+            if (quantidade > 1) {
+                quantidade--;
+                quantidadeSpan.innerText = quantidade;
+                calcularTotal();
+            }
+        }
+
+        function calcularTotal() {
+            var produtos = document.querySelectorAll('.product-card');
+            
+            produtos.forEach(function(produtoCard) {
+                var precoVenda = parseFloat(produtoCard.dataset.precoVenda);
+                var quantidade = parseInt(produtoCard.querySelector('span').innerText);
+                var precoTotal = precoVenda * quantidade;
+                
+                produtoCard.querySelector('.price-value').innerText = precoTotal.toFixed(2);
+            });
+        }
+
+        function exibirLoading() {
+            var overlay = document.querySelector('.overlay');
+            overlay.style.display = 'flex';
+        }
+        
+        function esconderLoading() {
+            var overlay = document.querySelector('.overlay');
+            overlay.style.display = 'none';
+        }
+
+        async function adicionarItemCarrinho(button) {
+            var card = button.closest('.product-card');
+            var id = card.getAttribute('data-id');
+            var nome = card.querySelector('.nome-produto').innerText;
+            var descricao = card.querySelector('.product-details p:nth-child(3)').innerText;
+            var estoque = parseInt(card.querySelector('.product-availability').innerText.match(/\d+/)[0]);
+            var quantidade = parseInt(card.querySelector('.product-actions span').innerText);
+            var preco = parseFloat(card.querySelector('.price-value').innerText);
+            var valorTotal = preco * quantidade;
+
+            if (quantidade <= estoque) {
+                exibirLoading();
+                estoque -= quantidade;
+                card.querySelector('.product-availability').innerText = `+${estoque} disponíveis`;
+
+                var produto = {
+                    id: id,
+                    nome: nome,
+                    descricao: descricao,
+                    estoque: estoque,
+                    quantidade: quantidade,
+                    preco: preco,
+                    valorTotal: valorTotal
+                };
+
+                try {
+                    const response = await fetch('/adicionar_carrinho', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(produto)
+                    });
+
+                    if (response.ok) {
+                        const resposta = await response.json();
+                        atualizarQuantidadeItensCarrinho(resposta.quantidadeItens);
+                    } else {
+                        alert('Erro ao adicionar produto ao carrinho.');
+                    }
+                } catch (error) {
+                    console.error('Erro ao enviar produto:', error);
+                } finally {
+                    esconderLoading();
+                }
+            } else {
+                alert('Quantidade indisponível no estoque.');
+            }
+        }
+
+        function atualizarQuantidadeItensCarrinho(quantidade) {
+            var spanQuantidade = document.getElementById('quantidade-itens-carrinho');
+            spanQuantidade.innerText = quantidade;
+        }
+
+        function irParaCarrinho() {
+            window.location.href = "/carrinho";
+        }
+    </script>
+</body>
+</html>

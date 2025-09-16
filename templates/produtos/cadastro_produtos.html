@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Produto</title>
+    <link rel="icon" href="/static/imagem/icone.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/css/cadastro_produtos.css">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="container">
+        <h2>Cadastro de Produto</h2>
+        <form action="#" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="nome">Nome do Produto:</label>
+                <input type="text" id="nome" name="nome" style="text-transform: uppercase;" required>
+            </div>
+            <div class="form-group">
+                <label for="quantidade">Quantidade:</label>
+                <input type="number" id="quantidade" name="quantidade" min="1" required>
+            </div>
+            <div class="form-group">
+                <label for="descricao">Descrição:</label>
+                <textarea id="descricao" name="descricao" rows="4" style="text-transform: uppercase;" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="preco_compra">Preço de Compra (R$):</label>
+                <input type="number" id="preco_compra" name="preco_compra" min="0" step="0.01" oninput="calcularLucro()" required>
+            </div>
+            <div class="form-group">
+                <label for="preco_venda">Preço de Venda (R$):</label>
+                <input type="number" id="preco_venda" name="preco_venda" min="0" step="0.01" oninput="calcularLucro()" required>
+            </div>
+            <div class="form-group">
+                <label for="lucro_reais">Lucro (R$):</label>
+                <input type="text" id="lucro_reais" name="lucro_reais" readonly>
+            </div>
+            <div class="form-group">
+                <label for="lucro_porcentagem">Lucro (%):</label>
+                <input type="text" id="lucro_porcentagem" name="lucro_porcentagem" readonly>
+            </div>
+            
+
+            <div class="form-group">
+                <label for="imagem">Imagem do Produto:</label>
+                <input type="file" id="imagem" name="imagem" accept="image/*">
+            </div>
+
+            <div id="loading-message" style="display: none;">
+                <img src="/static/imagem/Loading.gif" alt="Carregando..." style="float: left; margin-right: 10px; width: 50px; height: 50px;">
+                <p style="overflow: hidden; line-height: 50px;">Cadastrando produto, por favor aguarde...</p>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" id="btn-cadastrar" value="Cadastrar Produto">
+            </div>
+        </form>
+    </div>
+
+    <div id="overlay" class="overlay">
+        <div class="overlay-content">
+            <p>Produto cadastrado</p>
+            <button onclick="closeOverlay()">OK</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        function logout() {
+            window.location.href = "/logout";
+        }
+
+        // Verificar se o usuário chegou a esta página usando a seta de voltar do navegador
+        window.onload = function() {
+            if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {
+                // Redirecionar para a página de login se o usuário não estiver autenticado
+                // Substitua 'caminho_para_login' pelo URL da sua página de login
+                window.location.replace("/");
+            }
+        };
+
+        function calcularLucro() {
+            var precoCompraInput = document.getElementById("preco_compra");
+            var precoVendaInput = document.getElementById("preco_venda");
+
+            // Verificar se ambos os campos de preço de compra e preço de venda estão preenchidos
+            if (precoCompraInput.value && precoVendaInput.value) {
+                var precoCompra = parseFloat(precoCompraInput.value);
+                var precoVenda = parseFloat(precoVendaInput.value);
+
+                // Calcular o lucro apenas se ambos os campos estiverem preenchidos
+                var lucroReais = precoVenda - precoCompra;
+                var lucroPorcentagem = (lucroReais / precoCompra) * 100;
+
+                
+                // Exibir os resultados formatados nos campos de saída
+                document.getElementById("lucro_reais").value = lucroReais.toFixed(2);
+                document.getElementById("lucro_porcentagem").value = lucroPorcentagem.toFixed(2) + "%";
+            } else {
+                // Se algum dos campos estiver vazio, definir o valor do campo de lucro como vazio
+                document.getElementById("lucro_reais").value = "";
+                document.getElementById("lucro_porcentagem").value = "";
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('btn-cadastrar').addEventListener('click', function(event) {
+            event.preventDefault(); // Evita o envio tradicional do formulário
+
+            // Validar os campos do formulário
+            if (validarFormulario()) {
+                // Mostrar o elemento de mensagem de carregamento
+                document.getElementById('loading-message').style.display = 'block';
+
+                var form_data = new FormData();
+                form_data.append('nome', document.getElementById('nome').value);
+                form_data.append('quantidade', document.getElementById('quantidade').value);
+                form_data.append('descricao', document.getElementById('descricao').value);
+                form_data.append('preco_compra', document.getElementById('preco_compra').value);
+                form_data.append('preco_venda', document.getElementById('preco_venda').value);
+                form_data.append('lucro_reais', document.getElementById('lucro_reais').value);
+                form_data.append('lucro_porcentagem', document.getElementById('lucro_porcentagem').value);
+                
+                // Obter o arquivo de imagem selecionado pelo usuário
+                var imagemInput = document.getElementById('imagem');
+                var imagemFile = imagemInput.files[0];
+
+                // Verificar se um arquivo foi selecionado
+                if (imagemFile) {
+                    form_data.append('imagem', imagemFile);
+                }
+                
+                // Enviar os dados do formulário para o servidor usando XMLHttpRequest
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/adicionar_produto', true);
+                xhr.onload = function() {
+                    // Ocultar a mensagem de carregamento após o processamento do formulário
+                    document.getElementById('loading-message').style.display = 'none';
+
+                    if (xhr.status === 200) {
+                        // Limpar os campos do formulário
+                        document.getElementById('nome').value = '';
+                        document.getElementById('quantidade').value = '';
+                        document.getElementById('descricao').value = '';
+                        document.getElementById('preco_compra').value = '';
+                        document.getElementById('preco_venda').value = '';
+                        document.getElementById('lucro_reais').value = '';
+                        document.getElementById('lucro_porcentagem').value = '';
+                        document.getElementById('imagem').value = '';
+                        showOverlay();
+                    } 
+                    else if (xhr.status === 409) {
+                        alert('Produto já cadastrado anteriormente!');
+                    }
+                    else {
+                        alert('Ocorreu um erro ao cadastrar o produto. Por favor, tente novamente.');
+                    }
+                };
+                xhr.send(form_data);
+            }
+        });
+        });
+
+        function showOverlay() {
+            document.getElementById('overlay').style.display = 'flex';
+        }
+
+        function closeOverlay() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+        
+        function validarFormulario() {
+            // Realize a validação dos campos do formulário aqui
+            // Por exemplo, verifique se os campos obrigatórios estão preenchidos
+            var nome = document.getElementById('nome').value;
+            var quantidade = document.getElementById('quantidade').value;
+            var descricao = document.getElementById('descricao').value;
+            var precoCompra = document.getElementById('preco_compra').value;
+            var precoVenda = document.getElementById('preco_venda').value;
+
+            if (nome === '' || quantidade === '' || descricao === '' || precoCompra === '' || precoVenda === '') {
+                alert('Por favor, preencha todos os campos.');
+                return false;
+            }
+
+            // Adicione outras verificações conforme necessário
+
+            return true;
+        }
+    </script>
+
+
+
+</body>
+</html>
