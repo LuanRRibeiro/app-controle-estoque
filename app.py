@@ -36,6 +36,7 @@ from dotenv import load_dotenv
 
 # ====== Argon2id (senha) ======
 from argon2 import PasswordHasher, exceptions as argon2_exc
+
 ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=2)
 
 # Opcional: pepper (segredo do app) — defina em .env
@@ -58,10 +59,11 @@ carrinho_compras = []
 # Conexão com o Banco de Dados
 # ===============================
 def conexao_bd():
-    host = "dpg-cof9fjq1hbls7399en5g-a.oregon-postgres.render.com"
-    database = "bd_app_estoque"
-    user = "bd_app_estoque_user"
-    password = "D31cgvSdlSNBr5SnLiaaismYUTKv2Ct7"
+    host = os.getenv("DB_HOST")
+    database = os.getenv("DB_NAME")  
+    user = os.getenv("DB_USER")
+    password = os.getenv("DB_PASSWORD")
+
 
     try:
         conexao = psycopg2.connect(host=host, database=database, user=user, password=password)
