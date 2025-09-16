@@ -1,50 +1,70 @@
-// Obtém a referência ao formulário de redefinição de senha pelo seu ID
+console.log("nova_senha.js carregado!");
+
 const form = document.getElementById('redefinir-senha-form');
-
-// Obtém a referência ao elemento de mensagem pelo seu ID
 const message = document.getElementById('message');
+const submitBtn = form.querySelector('button[type="submit"]');
 
-// Adiciona um ouvinte de evento ao formulário para capturar o evento de envio (submit)
-form.addEventListener('submit', (event) => {
-    // Impede o comportamento padrão do formulário de enviar dados e recarregar a página
-    event.preventDefault();
+function getTokenFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return (params.get('token') || '').trim();
+}
 
-    // Obtém o valor do campo "nova-senha" e "repetir-senha"
-    const novaSenha = document.getElementById('nova-senha').value;
-    const repetirSenha = document.getElementById('repetir-senha').value;
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
 
-    // Verifica se as senhas coincidem
-    if (novaSenha !== repetirSenha) {
-        // Exibe uma mensagem de erro se as senhas não coincidirem
-        message.textContent = 'As senhas não coincidem. Por favor, tente novamente.';
-        message.style.color = 'red'; // Opcional: Adiciona um estilo para a mensagem de erro
-        return; // Interrompe a execução do código
+  const novaSenha = document.getElementById('nova-senha').value.trim();
+  const repetirSenha = document.getElementById('repetir-senha').value.trim();
+  const token = getTokenFromURL();
+
+  if (!token) {
+    message.textContent = 'Link inválido ou expirado.';
+    message.style.color = 'red';
+    return;
+  }
+  if (novaSenha.length < 8) {
+    message.textContent = 'A senha deve ter pelo menos 8 caracteres.';
+    message.style.color = 'red';
+    return;
+  }
+  if (novaSenha !== repetirSenha) {
+    message.textContent = 'As senhas não coincidem. Por favor, corrija e tente novamente.';
+    message.style.color = 'red';
+    return;
+  }
+
+  message.textContent = 'Enviando...';
+  message.style.color = 'navy';
+  submitBtn.disabled = true;
+
+  try {
+    const resp = await fetch('/nova_senha', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, novaSenha })
+    });
+
+    let data = {};
+    try {
+      data = await resp.json();
+    } catch {
+      // se o backend retornou texto puro
+      data = { success: resp.ok, message: resp.ok ? 'Senha atualizada.' : 'Falha ao atualizar senha.' };
     }
 
-    // Obtém os parâmetros da URL, incluindo o token
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token'); // Obtém o valor do parâmetro "token" da URL
-
-    // Faz uma requisição POST para o servidor para redefinir a senha
-    fetch('/nova_senha', {
-        method: 'POST', // Método HTTP
-        headers: { 'Content-Type': 'application/json' }, // Define o tipo de conteúdo como JSON
-        body: JSON.stringify({ token, novaSenha }) // Converte os dados para uma string JSON e os envia no corpo da requisição
-    })
-    .then(response => response.json()) // Converte a resposta para JSON
-    .then(data => {
-        // Exibe a mensagem de resposta do servidor
-        message.textContent = data.message;
-        message.style.color = data.success ? 'green' : 'red'; // Estilo para a mensagem de sucesso ou erro
-        if (data.success) {
-            // Redireciona o usuário para a página de login em caso de sucesso
-            window.location.href = '/';
-        }
-    })
-    .catch(error => {
-        // Lida com erros na requisição
-        console.error('Erro:', error);
-        message.textContent = 'Ocorreu um erro. Por favor, tente novamente mais tarde.';
-        message.style.color = 'red'; // Opcional: Adiciona um estilo para a mensagem de erro
-    });
+    if (resp.ok && data.success) {
+      message.textContent = data.message || 'Senha atualizada com sucesso!';
+      message.style.color = 'green';
+      // redireciona após 1.5s (opcional)
+      setTimeout(() => { window.location.href = '/'; }, 1500);
+    } else {
+      message.textContent = data.message || 'Link inválido ou expirado.';
+      message.style.color = 'red';
+    }
+  } catch (error) {
+    console.error('Erro:', error);
+    message.textContent = 'Erro ao conectar com o servidor.';
+    message.style.color = 'red';
+  } finally {
+    submitBtn.disabled = false;
+  }
 });

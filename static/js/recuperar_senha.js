@@ -1,42 +1,47 @@
 const form = document.querySelector('form');
 const emailInput = document.getElementById('email');
 const message = document.getElementById('message');
+const submitBtn = form.querySelector('button[type="submit"]');
 
-form.addEventListener('submit', (event) => {
-    event.preventDefault(); // Impede o envio padrão do formulário
+form.addEventListener('submit', async (event) => {
+    event.preventDefault();
 
-    // Exibe "Enviando..." enquanto a requisição está em andamento
+    const email = emailInput.value.trim();
+
+    // Validação simples de e-mail
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+        message.textContent = 'Informe um e-mail válido.';
+        message.style.color = 'red';
+        return;
+    }
+
     message.textContent = 'Enviando...';
-    message.style.color = 'navy'; // Opcional: Muda a cor do texto para um estilo neutro durante o envio
+    message.style.color = 'navy';
+    submitBtn.disabled = true; // Desabilita para evitar clique duplo
 
-    const email = emailInput.value;
+    try {
+        const response = await fetch('/enviar_email_recuperar_senha', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
 
-    // Faz a requisição para o servidor
-    fetch('/enviar_email_recuperar_senha', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email: email })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Erro na resposta do servidor');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            message.textContent = 'Um email de recuperação foi enviado.';
-            message.style.color = 'green'; // Estilo para a mensagem de sucesso
+        const data = await response.json();
+
+        // Mostra a mensagem genérica independente de sucesso/falha
+        if (response.ok && data.success) {
+            message.textContent = 'Se o e-mail existir, você receberá as instruções.';
+            message.style.color = 'green';
         } else {
-            message.textContent = 'Houve um problema ao enviar o email. Tente novamente.';
-            message.style.color = 'red'; // Estilo para a mensagem de erro
+            message.textContent = 'Não foi possível processar sua solicitação agora.';
+            message.style.color = 'red';
         }
-    })
-    .catch(error => {
+
+    } catch (error) {
         console.error('Erro:', error);
-        message.textContent = 'Email não cadastrado!';
-        message.style.color = 'red'; // Estilo para a mensagem de erro
-    });
+        message.textContent = 'Erro ao conectar com o servidor.';
+        message.style.color = 'red';
+    } finally {
+        submitBtn.disabled = false; // Reativa o botão
+    }
 });
